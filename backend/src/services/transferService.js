@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 
 import Transfer from "../models/Transfer.js";
 import TransferItem from "../models/TransferItem.js";
-
 import AppError from "../utils/AppError.js";
 
 import {
@@ -11,93 +10,130 @@ import {
   createMovement,
 } from "./inventoryService.js";
 
-export const createTransfer = async ({
+const generateTransferNo = () => {
+  return `TRF-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+};
+
+export const createTransferService = async ({
   fromShopId,
   toShopId,
   items,
+  remarks = "",
+  createdBy,
+  transferDate = new Date(),
 }) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+  if (!fromShopId || !toShopId) {
+    throw new AppError("From shop and to shop are required", 400);
+  }
 
-    try {
-        const transfer = await Transfer.create({
-            fromShopId,
-            toShopId,
-            status: "pending",
-        }, { session });        
-        for (const item of items) {
-            const { productId, unitId, quantity } = item;
-            await decreaseStock({
-                shopId: fromShopId,
-                productId,  
-                unitId,
-                quantity,
-            }, session);
-            await createMovement({
-                shopId: fromShopId,
-                productId,
-                unitId,
-                quantity: -quantity,
-                type: "transfer_out",
-                referenceId: transfer._id,
-            }, session);
-            await TransferItem.create({ 
-                transferId: transfer._id,
-                productId,
-                unitId, 
-                quantity,
-            }, { session });
-        }
-        await session.commitTransaction();
-        session.endSession();
-        return transfer;
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
-        throw error;
-    }       
+  if (fromShopId.toString() === toShopId.toString()) {
+    throw new AppError("Cannot transfer to same shop", 400);
+  }
 
-};
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    throw new AppError("Transfer items are required", 400);
+  }
 
-export const receiveTransfer = async (transferId) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-    try {   
-        const transfer = await Transfer.findById(transferId).session(session);
-        if (!transfer) {
-            throw new AppError("Transfer not found", 404);
-        }
-        if (transfer.status !== "pending") {
-            throw new AppError("Transfer already received", 400);
-        }   
-        const items = await TransferItem.find({ transferId }).session(session);
-        for (const item of items) {
-            const { productId, unitId, quantity } = item;   
-            await increaseStock({
-                shopId: transfer.toShopId,
-                productId,  
-                unitId,
-                quantity,
-            }, session);    
-            await createMovement({
-                shopId: transfer.toShopId,
-                productId,
-                unitId,
-                quantity,
-                type: "transfer_in",
-                referenceId: transfer._id,
-            }, session);
-        }
-        transfer.status = "received";
-        await transfer.save({ session });
-        await session.commitTransaction();
-        session.endSession();
-        return transfer;
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
-        throw error;
+  try {
+    const transferResult = await Transfer.create(
+      [
+        {
+          transferNo: generateTransferNo(),
+          fromShopId,
+          toShopId,
+          transferDate,
+          remarks,
+          createdBy,
+          status: "posted",
+        },
+      ],
+      { session }
+    );
+
+    const transferDoc = transferResult[0];
+
+    for (const item of items) {
+      const {
+        productId,
+        unitId,
+        quantity,
+        remarks: itemRemarks = "",
+      } = item;
+
+      if (!productId || !unitId || !quantity || Number(quantity) <= 0) {
+        throw new AppError("Invalid transfer item data", 400);
+      }
+
+      await decreaseStock({
+        shopId: fromShopId,
+        productId,
+        quantity: Number(quantity),
+        session,
+      });
+
+      await increaseStock({
+        shopId: toShopId,
+        productId,
+        unitId,
+        quantity: Number(quantity),
+        session,
+      });
+
+      await TransferItem.create(
+        [
+          {
+            transferId: transferDoc._id,
+            productId,
+            quantity: Number(quantity),
+            unitId,
+            remarks: itemRemarks,
+          },
+        ],
+        { session }
+      );
+
+      await createMovement({
+        shopId: fromShopId,
+        productId,
+        unitId,
+        quantity: Number(quantity),
+        quantityEffect: -Number(quantity),
+        movementType: "TRANSFER_OUT",
+        referenceType: "Transfer",
+        referenceId: transferDoc._id,
+        createdBy,
+        remarks: itemRemarks,
+        movementDate: transferDate,
+        session,
+      });
+
+      await createMovement({
+        shopId: toShopId,
+        productId,
+        unitId,
+        quantity: Number(quantity),
+        quantityEffect: Number(quantity),
+        movementType: "TRANSFER_IN",
+        referenceType: "Transfer",
+        referenceId: transferDoc._id,
+        createdBy,
+        remarks: itemRemarks,
+        movementDate: transferDate,
+        session,
+      });
     }
 
-};  
+    await session.commitTransaction();
+    session.endSession();
+
+    return transferDoc;
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
+    throw error;
+  }
+};
