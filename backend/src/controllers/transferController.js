@@ -1,50 +1,106 @@
 // src/controllers/transferController.js
 import mongoose from "mongoose";
 import Transfer from "../models/Transfer.js";
+import TransferItem from "../models/TransferItem.js";
+import { createTransferService } from "../services/transferService.js";
+
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
+const userShopId = (req) => req.user.shopId?.toString();
+
+const isShopKeeperAllowedForTransfer = (req, transfer) => {
+  if (req.user.role === "admin") {
+    return true;
+  }
+
+  const assignedShopId = userShopId(req);
+  if (!assignedShopId) {
+    return false;
+  }
+
+  return (
+    transfer.fromShopId?.toString() === assignedShopId ||
+    transfer.toShopId?.toString() === assignedShopId ||
+    transfer.fromShopId?._id?.toString() === assignedShopId ||
+    transfer.toShopId?._id?.toString() === assignedShopId
+  );
+};
+
+/**
+ * CREATE TRANSFER
+ * POST /api/transfers
+ */
 /**
  * CREATE TRANSFER
  * POST /api/transfers
  */
 export const createTransfer = async (req, res) => {
   try {
-    const { transferNo, fromShopId, toShopId, transferDate, status, remarks, createdBy } = req.body;
+    const {
+      fromShopId,
+      toShopId,
+      transferDate,
+      remarks,
+      items,
+    } = req.body;
 
-    if (!transferNo || !fromShopId || !toShopId || !transferDate || !createdBy) {
+    if (!fromShopId || !toShopId || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "transferNo, fromShopId, toShopId, transferDate, and createdBy are required",
+        message: "fromShopId, toShopId, and items are required",
       });
     }
 
-    if (
-      !isValidObjectId(fromShopId) ||
-      !isValidObjectId(toShopId) ||
-      !isValidObjectId(createdBy)
-    ) {
+    if (!isValidObjectId(fromShopId) || !isValidObjectId(toShopId)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid fromShopId, toShopId, or createdBy",
+        message: "Invalid fromShopId or toShopId",
       });
     }
 
-    if (fromShopId === toShopId) {
+    if (fromShopId.toString() === toShopId.toString()) {
       return res.status(400).json({
         success: false,
         message: "fromShopId and toShopId cannot be the same",
       });
     }
 
-    const transfer = await Transfer.create({
-      transferNo,
+    if (req.user.role !== "admin" && fromShopId.toString() !== userShopId(req)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only transfer stock from your assigned shop",
+      });
+    }
+
+    for (const item of items) {
+      if (
+        !item.productId ||
+        !item.unitId ||
+        !item.quantity ||
+        Number(item.quantity) <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Each item must have productId, unitId, and positive quantity",
+        });
+      }
+
+      if (!isValidObjectId(item.productId) || !isValidObjectId(item.unitId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid productId or unitId in items",
+        });
+      }
+    }
+
+    const transfer = await createTransferService({
       fromShopId,
       toShopId,
-      transferDate,
-      status: status || "posted",
+      items,
       remarks: remarks || "",
-      createdBy,
+      transferDate: transferDate ? new Date(transferDate) : new Date(),
+      createdBy: req.user._id,
     });
 
     const populated = await Transfer.findById(transfer._id)
@@ -52,25 +108,26 @@ export const createTransfer = async (req, res) => {
       .populate("toShopId", "name code")
       .populate("createdBy", "name email");
 
+    const transferItems = await TransferItem.find({
+      transferId: transfer._id,
+    })
+      .populate("productId", "itemCode description")
+      .populate("unitId", "name shortName");
+
     return res.status(201).json({
       success: true,
       message: "Transfer created successfully",
-      data: populated,
+      data: {
+        transfer: populated,
+        items: transferItems,
+      },
     });
   } catch (error) {
     console.error("Error creating transfer:", error);
 
-    if (error.code === 11000) {
-      return res.status(409).json({
-        success: false,
-        message: "Transfer number already exists",
-      });
-    }
-
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
-      message: "Server Error",
-      error: error.message,
+      message: error.message || "Server Error",
     });
   }
 };
@@ -85,6 +142,22 @@ export const getAllTransfers = async (req, res) => {
 
     const query = {};
 
+    if (req.user.role !== "admin") {
+      const assignedShopId = userShopId(req);
+
+      if (!assignedShopId) {
+        return res.status(403).json({
+          success: false,
+          message: "No shop assigned to this user",
+        });
+      }
+
+      query.$or = [
+        { fromShopId: assignedShopId },
+        { toShopId: assignedShopId },
+      ];
+    }
+
     if (fromShopId) {
       if (!isValidObjectId(fromShopId)) {
         return res.status(400).json({
@@ -92,6 +165,13 @@ export const getAllTransfers = async (req, res) => {
           message: "Invalid fromShopId",
         });
       }
+      if (req.user.role !== "admin" && fromShopId !== userShopId(req)) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only view transfers for your assigned shop",
+        });
+      }
+
       query.fromShopId = fromShopId;
     }
 
@@ -102,6 +182,13 @@ export const getAllTransfers = async (req, res) => {
           message: "Invalid toShopId",
         });
       }
+      if (req.user.role !== "admin" && toShopId !== userShopId(req)) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only view transfers for your assigned shop",
+        });
+      }
+
       query.toShopId = toShopId;
     }
 
@@ -168,6 +255,13 @@ export const getTransferById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Transfer not found",
+      });
+    }
+
+    if (!isShopKeeperAllowedForTransfer(req, transfer)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view transfers for your assigned shop",
       });
     }
 

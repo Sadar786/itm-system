@@ -7,13 +7,17 @@ import {
   updateWasteItem,
   deleteWasteItem,
 } from "../controllers/wasteItemController.js";
+import { protect } from "../middleware/authMiddleware.js";
+import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", createWasteItem);
-router.get("/", getAllWasteItems);
-router.get("/:id", getWasteItemById);
-router.put("/:id", updateWasteItem);
-router.delete("/:id", deleteWasteItem);
+router.use(protect);
+
+router.post("/", authorizeRoles("admin", "shop_keeper"), createWasteItem);
+router.get("/", authorizeRoles("admin", "shop_keeper"), getAllWasteItems);
+router.get("/:id", authorizeRoles("admin", "shop_keeper"), getWasteItemById);
+router.put("/:id", authorizeRoles("admin"), updateWasteItem);
+router.delete("/:id", authorizeRoles("admin"), deleteWasteItem);
 
 export default router;

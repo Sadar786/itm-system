@@ -1,17 +1,18 @@
 import express from "express";
-import { loginUser, signupUser, getAlUsers , getUserById,updateUser, deleteUser, getUserShop} from "../controllers/authController.js";
+import {
+  loginUser,
+  signupUser,
+  getAlUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+  getUserShop,
+} from "../controllers/authController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
-
-
-// ADMIN ONLY
-// router.use(
-//   protect,
-//   authorizeRoles("admin")
-// );
 
 
 router.get(
@@ -26,11 +27,15 @@ router.get(
   }
 );
 
-router.get("/" , getAlUsers);
-router.post("/login" , loginUser);
+router.post("/login", loginUser);
 router.post("/signup", signupUser);
-router.get("/user/:id", getUserById);
-router.put("/user/:id",  updateUser);
-router.delete("/user/:id", deleteUser);
-router.get("/:userId", getUserShop);
+
+router.use(protect);
+
+router.get("/", authorizeRoles("admin"), getAlUsers);
+router.get("/user/:id", authorizeRoles("admin"), getUserById);
+router.put("/user/:id", authorizeRoles("admin"), updateUser);
+router.delete("/user/:id", authorizeRoles("admin"), deleteUser);
+router.get("/:userId", authorizeRoles("admin"), getUserShop);
+
 export default router;

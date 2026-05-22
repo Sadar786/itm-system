@@ -1,9 +1,10 @@
 import Inventory from "../models/Inventory.js";
 import InventoryMovement from "../models/InventoryMovement.js";
 import AppError from "../utils/AppError.js";
+import { randomBytes } from "node:crypto";
 
 const generateMovementNo = () => {
-  return `MOV-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  return `MOV-${Date.now()}-${randomBytes(4).toString("hex").toUpperCase()}`;
 };
 
 export const checkAvailableStock = async ({

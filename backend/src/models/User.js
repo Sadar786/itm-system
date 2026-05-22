@@ -31,7 +31,12 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
 
-  
+    shopId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Shop",
+      default: null,
+      index: true,
+    },
 
     isActive: {
       type: Boolean,
@@ -55,13 +60,14 @@ userSchema.index({ role: 1, shopId: 1 });
 // HASH PASSWORD BEFORE SAVE
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
-    return 
+    return next();
   }
 
   const salt = await bcrypt.genSalt(10);
 
   this.password = await bcrypt.hash(this.password, salt);
 
+  next();
 });
 
 

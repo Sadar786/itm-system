@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { randomBytes } from "node:crypto";
 
 import Transfer from "../models/Transfer.js";
 import TransferItem from "../models/TransferItem.js";
@@ -11,7 +12,7 @@ import {
 } from "./inventoryService.js";
 
 const generateTransferNo = () => {
-  return `TRF-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  return `TRF-${Date.now()}-${randomBytes(4).toString("hex").toUpperCase()}`;
 };
 
 export const createTransferService = async ({

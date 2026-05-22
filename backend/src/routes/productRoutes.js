@@ -1,16 +1,18 @@
 import express from 'express';
 import { getProducts, createProduct, updateProduct, deleteProduct, getOneProduct } from '../controllers/productController.js';
+import { protect } from "../middleware/authMiddleware.js";
+import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
 // GET ALL PRODUCTS
-router.get('/', getProducts);
-router.get('/single/:id', getOneProduct);
+router.get('/', protect, getProducts);
+router.get('/single/:id', protect, getOneProduct);
 // CREATE A NEW PRODUCT
-router.post('/create', createProduct);    
+router.post('/create', protect, authorizeRoles("admin"), createProduct);
 // UPDATE A PRODUCT
-router.put('/update/:id', updateProduct);
+router.put('/update/:id', protect, authorizeRoles("admin"), updateProduct);
 // DELETE A PRODUCT
-router.delete('/delete/:id', deleteProduct);
+router.delete('/delete/:id', protect, authorizeRoles("admin"), deleteProduct);
 
 export default router;

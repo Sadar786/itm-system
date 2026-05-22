@@ -4,13 +4,39 @@ import Inventory from "../models/Inventory.js";
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
+const getScopedShopId = (req, requestedShopId) => {
+  if (req.user.role === "admin") {
+    return requestedShopId;
+  }
+
+  if (!req.user.shopId) {
+    return null;
+  }
+
+  const assignedShopId = req.user.shopId.toString();
+
+  if (requestedShopId && requestedShopId.toString() !== assignedShopId) {
+    return false;
+  }
+
+  return assignedShopId;
+};
+
 /**
  * ADD / INCREASE INVENTORY
  * POST /api/inventory/in
  */
 export const addInventory = async (req, res) => {
   try {
-    const { shopId, productId, quantity, unitId } = req.body;
+    const { shopId: requestedShopId, productId, quantity, unitId } = req.body;
+    const shopId = getScopedShopId(req, requestedShopId);
+
+    if (shopId === false) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only manage inventory for your assigned shop",
+      });
+    }
 
     if (
       !shopId ||
@@ -113,7 +139,14 @@ export const addInventory = async (req, res) => {
  */
 export const getCurrentInventory = async (req, res) => {
   try {
-    const { shopId } = req.query;
+    const shopId = getScopedShopId(req, req.query.shopId);
+
+    if (shopId === false) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view inventory for your assigned shop",
+      });
+    }
 
     const query = {};
 
@@ -173,6 +206,16 @@ export const getInventoryById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Inventory not found",
+      });
+    }
+
+    if (
+      req.user.role !== "admin" &&
+      inventory.shopId?._id?.toString() !== req.user.shopId?.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view inventory for your assigned shop",
       });
     }
 
