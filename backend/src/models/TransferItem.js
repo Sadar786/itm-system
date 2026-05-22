@@ -1,4 +1,5 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
+
 
 const transferItemSchema = new mongoose.Schema(
   {
@@ -42,4 +43,4 @@ const transferItemSchema = new mongoose.Schema(
 
 transferItemSchema.index({ transferId: 1, productId: 1 });
 
-module.exports = mongoose.model("TransferItem", transferItemSchema);
+export default mongoose.model("TransferItem", transferItemSchema);
