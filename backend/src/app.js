@@ -9,6 +9,7 @@ import inventoryRoutes from "./routes/inventoryRoutes.js";
 import transferRoutes from "./routes/transferRoutes.js";
 import wasteItemRoutes from "./routes/wasteItemRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import devRoutes from "./routes/devRoutes.js";
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use("/api/inventory", inventoryRoutes);
 app.use("/api/transfers", transferRoutes);
 app.use("/api/waste_items", wasteItemRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/dev", devRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "API running" });
