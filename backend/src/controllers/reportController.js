@@ -53,7 +53,12 @@ const sendExcel = (res, { filename, buffer }) => {
     "Content-Type",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   );
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+  );
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
   res.send(Buffer.from(buffer));
 };
 

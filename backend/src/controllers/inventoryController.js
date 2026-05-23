@@ -1,6 +1,7 @@
 // src/controllers/inventoryController.js
 import mongoose from "mongoose";
 import Inventory from "../models/Inventory.js";
+import { createMovement } from "../services/inventoryService.js";
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -27,8 +28,16 @@ const getScopedShopId = (req, requestedShopId) => {
  * POST /api/inventory/in
  */
 export const addInventory = async (req, res) => {
+  const session = await mongoose.startSession();
+
   try {
-    const { shopId: requestedShopId, productId, quantity, unitId } = req.body;
+    const {
+      shopId: requestedShopId,
+      productId,
+      quantity,
+      unitId,
+      remarks = "",
+    } = req.body;
     const shopId = getScopedShopId(req, requestedShopId);
 
     if (shopId === false) {
@@ -69,10 +78,17 @@ export const addInventory = async (req, res) => {
       });
     }
 
-    const existingInventory = await Inventory.findOne({ shopId, productId });
+    session.startTransaction();
+
+    const movementDate = new Date();
+    const existingInventory = await Inventory.findOne({
+      shopId,
+      productId,
+    }).session(session);
 
     if (existingInventory) {
       if (existingInventory.unitId.toString() !== unitId) {
+        await session.abortTransaction();
         return res.status(400).json({
           success: false,
           message:
@@ -81,14 +97,31 @@ export const addInventory = async (req, res) => {
       }
 
       existingInventory.quantity += qty;
-      existingInventory.lastMovementAt = new Date();
+      existingInventory.lastMovementAt = movementDate;
 
-      const updatedInventory = await existingInventory.save();
+      const updatedInventory = await existingInventory.save({ session });
+
+      await createMovement({
+        shopId,
+        productId,
+        unitId,
+        quantity: qty,
+        quantityEffect: qty,
+        movementType: "IN",
+        referenceType: "StockReceipt",
+        referenceId: updatedInventory._id,
+        createdBy: req.user._id,
+        remarks,
+        movementDate,
+        session,
+      });
+
+      await session.commitTransaction();
 
       const populated = await Inventory.findById(updatedInventory._id)
         .populate("shopId", "name code")
-        .populate("productId", "name code")
-        .populate("unitId", "name symbol");
+        .populate("productId", "itemCode description defaultUnitId")
+        .populate("unitId", "name shortName");
 
       return res.status(200).json({
         success: true,
@@ -97,18 +130,40 @@ export const addInventory = async (req, res) => {
       });
     }
 
-    const inventory = await Inventory.create({
+    const [inventory] = await Inventory.create(
+      [
+        {
+          shopId,
+          productId,
+          quantity: qty,
+          unitId,
+          lastMovementAt: movementDate,
+        },
+      ],
+      { session }
+    );
+
+    await createMovement({
       shopId,
       productId,
-      quantity: qty,
       unitId,
-      lastMovementAt: new Date(),
+      quantity: qty,
+      quantityEffect: qty,
+      movementType: "IN",
+      referenceType: "StockReceipt",
+      referenceId: inventory._id,
+      createdBy: req.user._id,
+      remarks,
+      movementDate,
+      session,
     });
+
+    await session.commitTransaction();
 
     const populated = await Inventory.findById(inventory._id)
       .populate("shopId", "name code")
-      .populate("productId", "description itemCode")
-      .populate("unitId", "name symbol");
+      .populate("productId", "itemCode description defaultUnitId")
+      .populate("unitId", "name shortName");
 
     return res.status(201).json({
       success: true,
@@ -116,6 +171,10 @@ export const addInventory = async (req, res) => {
       data: populated,
     });
   } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+
     console.error("Error adding inventory:", error);
 
     if (error.code === 11000) {
@@ -130,6 +189,8 @@ export const addInventory = async (req, res) => {
       message: "Server Error",
       error: error.message,
     });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -163,8 +224,8 @@ export const getCurrentInventory = async (req, res) => {
     const inventory = await Inventory.find(query)
       .sort({ updatedAt: -1 })
       .populate("shopId", "name code")
-      .populate("productId", "name code")
-      .populate("unitId", "name symbol");
+      .populate("productId", "itemCode description defaultUnitId")
+      .populate("unitId", "name shortName");
 
     return res.status(200).json({
       success: true,
@@ -199,8 +260,8 @@ export const getInventoryById = async (req, res) => {
 
     const inventory = await Inventory.findById(id)
       .populate("shopId", "name code")
-      .populate("productId", "name code")
-      .populate("unitId", "name symbol");
+      .populate("productId", "itemCode description defaultUnitId")
+      .populate("unitId", "name shortName");
 
     if (!inventory) {
       return res.status(404).json({
@@ -289,8 +350,8 @@ export const updateInventory = async (req, res) => {
       runValidators: true,
     })
       .populate("shopId", "name code")
-      .populate("productId", "name code")
-      .populate("unitId", "name symbol");
+      .populate("productId", "itemCode description defaultUnitId")
+      .populate("unitId", "name shortName");
 
     return res.status(200).json({
       success: true,

@@ -75,12 +75,61 @@ const getShopName = (shop) => shop?.name || shop?.code || "";
 
 const getShopId = (shop) => shop?._id?.toString() || shop?.toString() || "";
 
-const buildMonthlyTransferRows = ({ dates, direction, transfers, items }) => {
+const getMonthlyTransferInventoryQuantities = async ({
+  direction,
+  transfers,
+  items,
+}) => {
+  const transferById = new Map(
+    transfers.map((transfer) => [transfer._id.toString(), transfer])
+  );
+  const productIds = new Set();
+  const shopIds = new Set();
+
+  items.forEach((item) => {
+    const transfer = transferById.get(item.transferId.toString());
+    if (!transfer) {
+      return;
+    }
+
+    const productId = item.productId?._id?.toString() || item.productId?.toString();
+    const existingShop = direction === "out" ? transfer.fromShopId : transfer.toShopId;
+    const shopId = getShopId(existingShop);
+
+    if (productId && shopId) {
+      productIds.add(productId);
+      shopIds.add(shopId);
+    }
+  });
+
+  if (!productIds.size || !shopIds.size) {
+    return new Map();
+  }
+
+  const inventoryRows = await Inventory.find({
+    productId: { $in: [...productIds] },
+    shopId: { $in: [...shopIds] },
+  }).select("productId shopId quantity");
+
+  return new Map(
+    inventoryRows.map((item) => [
+      `${item.shopId.toString()}|${item.productId.toString()}`,
+      item.quantity,
+    ])
+  );
+};
+
+const buildMonthlyTransferRows = ({
+  dates,
+  direction,
+  transfers,
+  items,
+  inventoryQuantities = new Map(),
+}) => {
   const transferById = new Map(
     transfers.map((transfer) => [transfer._id.toString(), transfer])
   );
   const groupedRows = new Map();
-  const totalsByShopPair = new Map();
 
   items.forEach((item) => {
     const transfer = transferById.get(item.transferId.toString());
@@ -101,20 +150,16 @@ const buildMonthlyTransferRows = ({ dates, direction, transfers, items }) => {
     const dayKey = `day_${toDateKey(transfer.transferDate)}`;
     const quantity = Number(item.quantity) || 0;
 
-    totalsByShopPair.set(
-      shopPairKey,
-      (totalsByShopPair.get(shopPairKey) || 0) + quantity
-    );
-
     if (!groupedRows.has(groupKey)) {
       const row = {
         _shopPairKey: shopPairKey,
+        _transferTotal: 0,
         itemCode: item.productId?.itemCode || "",
         description: item.productId?.description || "",
         existingShopName: getShopName(existingShop),
         transferShopName: getShopName(transferShop),
         uom: item.unitId?.shortName || item.unitId?.name || "",
-        total: 0,
+        total: inventoryQuantities.get(`${getShopId(existingShop)}|${productId}`) || 0,
       };
 
       dates.forEach((date) => {
@@ -126,12 +171,13 @@ const buildMonthlyTransferRows = ({ dates, direction, transfers, items }) => {
 
     const row = groupedRows.get(groupKey);
     row[dayKey] = (row[dayKey] || 0) + quantity;
-    row.total += quantity;
+    row._transferTotal += quantity;
   });
 
   groupedRows.forEach((row) => {
-    row.shopPairTotal = totalsByShopPair.get(row._shopPairKey) || 0;
+    row.shopPairTotal = row._transferTotal;
     delete row._shopPairKey;
+    delete row._transferTotal;
   });
 
   return [...groupedRows.values()].sort((left, right) => {
@@ -454,13 +500,25 @@ export const getMonthlyTransferStockReport = async ({
     .populate("productId", "itemCode description")
     .populate("unitId", "name shortName");
 
+  const inventoryQuantities = await getMonthlyTransferInventoryQuantities({
+    direction,
+    transfers,
+    items,
+  });
+
   return {
     dates,
     transferShopHeader:
       direction === "out" ? "TO TRANSFER SHOP NAME" : "FROM SHOP NAME",
     summaryTotalHeader:
       direction === "out" ? "TOTAL TRANSFER" : "TOTAL INCOMING",
-    rows: buildMonthlyTransferRows({ dates, direction, transfers, items }),
+    rows: buildMonthlyTransferRows({
+      dates,
+      direction,
+      transfers,
+      items,
+      inventoryQuantities,
+    }),
   };
 };
 
@@ -526,6 +584,12 @@ export const getAllShopMonthlyTransferStockReport = async ({
     .populate("productId", "itemCode description")
     .populate("unitId", "name shortName");
 
+  const inventoryQuantities = await getMonthlyTransferInventoryQuantities({
+    direction,
+    transfers,
+    items,
+  });
+
   return {
     dates,
     shopHeader: "SHOP NAME",
@@ -533,7 +597,13 @@ export const getAllShopMonthlyTransferStockReport = async ({
       direction === "out" ? "TRANSFER TO SHOP NAME" : "FROM SHOP NAME",
     summaryTotalHeader:
       direction === "out" ? "TOTAL TRANSFER" : "TOTAL INCOMING",
-    rows: buildMonthlyTransferRows({ dates, direction, transfers, items }),
+    rows: buildMonthlyTransferRows({
+      dates,
+      direction,
+      transfers,
+      items,
+      inventoryQuantities,
+    }),
   };
 };
 
