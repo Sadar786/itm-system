@@ -120,7 +120,7 @@ export const addInventory = async (req, res) => {
 
       const populated = await Inventory.findById(updatedInventory._id)
         .populate("shopId", "name code")
-        .populate("productId", "itemCode description defaultUnitId")
+        .populate("productId", "itemCode description defaultUnitId minimumStock reorderLevel")
         .populate("unitId", "name shortName");
 
       return res.status(200).json({
@@ -162,7 +162,7 @@ export const addInventory = async (req, res) => {
 
     const populated = await Inventory.findById(inventory._id)
       .populate("shopId", "name code")
-      .populate("productId", "itemCode description defaultUnitId")
+      .populate("productId", "itemCode description defaultUnitId minimumStock reorderLevel")
       .populate("unitId", "name shortName");
 
     return res.status(201).json({
@@ -224,7 +224,7 @@ export const getCurrentInventory = async (req, res) => {
     const inventory = await Inventory.find(query)
       .sort({ updatedAt: -1 })
       .populate("shopId", "name code")
-      .populate("productId", "itemCode description defaultUnitId")
+      .populate("productId", "itemCode description defaultUnitId minimumStock reorderLevel")
       .populate("unitId", "name shortName");
 
     return res.status(200).json({
@@ -260,7 +260,7 @@ export const getInventoryById = async (req, res) => {
 
     const inventory = await Inventory.findById(id)
       .populate("shopId", "name code")
-      .populate("productId", "itemCode description defaultUnitId")
+      .populate("productId", "itemCode description defaultUnitId minimumStock reorderLevel")
       .populate("unitId", "name shortName");
 
     if (!inventory) {
@@ -350,7 +350,7 @@ export const updateInventory = async (req, res) => {
       runValidators: true,
     })
       .populate("shopId", "name code")
-      .populate("productId", "itemCode description defaultUnitId")
+      .populate("productId", "itemCode description defaultUnitId minimumStock reorderLevel")
       .populate("unitId", "name shortName");
 
     return res.status(200).json({

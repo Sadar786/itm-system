@@ -249,10 +249,31 @@ export const getAllTransfers = async (req, res) => {
       .populate("toShopId", "name code")
       .populate("createdBy", "name email");
 
+    const transferItems = await TransferItem.find({
+      transferId: { $in: transfers.map((transfer) => transfer._id) },
+    })
+      .populate("productId", "itemCode description")
+      .populate("unitId", "name shortName");
+
+    const itemsByTransferId = transferItems.reduce((map, item) => {
+      const key = item.transferId.toString();
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key).push(item);
+      return map;
+    }, new Map());
+
+    const transfersWithItems = transfers.map((transfer) => {
+      const transferObject = transfer.toObject();
+      transferObject.items = itemsByTransferId.get(transfer._id.toString()) || [];
+      return transferObject;
+    });
+
     return res.status(200).json({
       success: true,
       message: "Transfers fetched successfully",
-      data: transfers,
+      data: transfersWithItems,
       pagination: {
         total,
         page: pageNumber,
