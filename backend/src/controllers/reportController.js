@@ -1,13 +1,15 @@
 import AppError from "../utils/AppError.js";
 import {
   getCurrentStockReport,
+  getStockDetailMatrixReport,
   getMovementReport,
+  getTransferMatrixReport,
 } from "../services/reportService.js";
 import {
   createWorkbookBuffer,
-  currentStockColumns,
+  createStockDetailWorkbookBuffer,
+  createTransferMatrixWorkbookBuffer,
   movementColumns,
-  normalizeCurrentStockRows,
   normalizeMovementRows,
 } from "../utils/excelGenerator.js";
 
@@ -57,18 +59,14 @@ export const getCurrentStock = async (req, res) => {
 
 export const exportCurrentStock = async (req, res) => {
   try {
-    const rows = await getCurrentStockReport({
+    const report = await getStockDetailMatrixReport({
       shopId: getScopedShopId(req),
     });
 
-    const buffer = await createWorkbookBuffer({
-      sheetName: "Current Stock",
-      columns: currentStockColumns,
-      rows: normalizeCurrentStockRows(rows),
-    });
+    const buffer = await createStockDetailWorkbookBuffer(report);
 
     return sendExcel(res, {
-      filename: "current-stock-report.xlsx",
+      filename: "stock-detail-report.xlsx",
       buffer,
     });
   } catch (error) {
@@ -114,6 +112,27 @@ export const exportMovements = async (req, res) => {
 
     return sendExcel(res, {
       filename: "inventory-movement-report.xlsx",
+      buffer,
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Server Error",
+    });
+  }
+};
+
+export const exportTransferMatrix = async (req, res) => {
+  try {
+    const report = await getTransferMatrixReport({
+      ...req.query,
+      shopId: getScopedShopId(req),
+    });
+
+    const buffer = await createTransferMatrixWorkbookBuffer(report);
+
+    return sendExcel(res, {
+      filename: "transfer-rec-report.xlsx",
       buffer,
     });
   } catch (error) {

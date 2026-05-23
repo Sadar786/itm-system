@@ -1,5 +1,7 @@
 export {
   createWorkbookBuffer,
+  createStockDetailWorkbookBuffer,
+  createTransferMatrixWorkbookBuffer,
   currentStockColumns,
   movementColumns,
   normalizeCurrentStockRows,
