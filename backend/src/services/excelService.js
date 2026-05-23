@@ -5,6 +5,8 @@ const formatDate = (value) => {
   return new Date(value).toISOString().slice(0, 10);
 };
 
+const quantityFormat = "0.000;-0.000;0";
+
 export const createWorkbookBuffer = async ({ sheetName, columns, rows }) => {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Inventory System";
@@ -128,9 +130,9 @@ export const createTransferMatrixWorkbookBuffer = async ({ dates, rows }) => {
 
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber > 1) {
-      row.getCell(fixedColumns.length).numFmt = "0.000";
+      row.getCell(fixedColumns.length).numFmt = quantityFormat;
       dateColumns.forEach((_, index) => {
-        row.getCell(fixedColumns.length + index + 1).numFmt = "0.000";
+        row.getCell(fixedColumns.length + index + 1).numFmt = quantityFormat;
       });
     }
 
@@ -142,6 +144,77 @@ export const createTransferMatrixWorkbookBuffer = async ({ dates, rows }) => {
         right: { style: "thin" },
       };
     });
+  });
+
+  return workbook.xlsx.writeBuffer();
+};
+
+export const createMonthlyTransferStockWorkbookBuffer = async ({
+  dates,
+  rows,
+  shopHeader = "EXISTING SHOP NAME",
+  transferShopHeader = "TRANSFER SHOP NAME",
+  totalHeader = "TOTAL",
+  summaryTotalHeader,
+}) => {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Inventory System";
+  workbook.created = new Date();
+
+  const worksheet = workbook.addWorksheet("Sheet1");
+  const fixedColumns = [
+    { header: "ITEM CODE", key: "itemCode", width: 14 },
+    { header: "PRODUCT NAME", key: "description", width: 39 },
+    { header: shopHeader, key: "existingShopName", width: 24 },
+    { header: transferShopHeader, key: "transferShopName", width: 24 },
+    { header: "UoM", key: "uom", width: 10 },
+    { header: totalHeader, key: "total", width: 16 },
+  ];
+  if (summaryTotalHeader) {
+    fixedColumns.push({
+      header: summaryTotalHeader,
+      key: "shopPairTotal",
+      width: 18,
+    });
+  }
+  const dateColumns = dates.map((date) => ({
+    header: date,
+    key: `day_${formatDate(date)}`,
+    width: 10,
+  }));
+  const columns = [...fixedColumns, ...dateColumns];
+
+  worksheet.columns = columns.map((column) => ({
+    key: column.key,
+    width: column.width,
+  }));
+
+  worksheet.getCell("A1").value = "STOCK DETAIL";
+  worksheet.getRow(2).values = columns.map((column) => column.header);
+
+  rows.forEach((row) => {
+    worksheet.addRow(row);
+  });
+
+  worksheet.views = [{ state: "frozen", ySplit: 2 }];
+  worksheet.getRow(2).font = { bold: true };
+  worksheet.getRow(2).alignment = { vertical: "middle", horizontal: "center" };
+
+  dateColumns.forEach((_, index) => {
+    const columnNumber = fixedColumns.length + index + 1;
+    worksheet.getCell(2, columnNumber).numFmt = "yyyy-mm-dd";
+  });
+
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber > 2) {
+      row.getCell(fixedColumns.length).numFmt = quantityFormat;
+      if (summaryTotalHeader) {
+        row.getCell(fixedColumns.length - 1).numFmt = quantityFormat;
+      }
+      dateColumns.forEach((_, index) => {
+        row.getCell(fixedColumns.length + index + 1).numFmt = quantityFormat;
+      });
+    }
   });
 
   return workbook.xlsx.writeBuffer();

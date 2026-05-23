@@ -1,10 +1,28 @@
 import Inventory from "../models/Inventory.js";
 import InventoryMovement from "../models/InventoryMovement.js";
+import Product from "../models/Product.js";
+import Shop from "../models/Shop.js";
 import AppError from "../utils/AppError.js";
 import { randomBytes } from "node:crypto";
 
 const generateMovementNo = () => {
   return `MOV-${Date.now()}-${randomBytes(4).toString("hex").toUpperCase()}`;
+};
+
+const getStockLabel = async ({ shopId, productId, session = null }) => {
+  const [shop, product] = await Promise.all([
+    Shop.findById(shopId).select("name code").session(session),
+    Product.findById(productId).select("itemCode description").session(session),
+  ]);
+
+  const shopLabel = shop
+    ? `${shop.name || shop.code}${shop.code ? ` (${shop.code})` : ""}`
+    : shopId;
+  const productLabel = product
+    ? `${product.itemCode || ""}${product.description ? ` - ${product.description}` : ""}`.trim()
+    : productId;
+
+  return { shopLabel, productLabel };
 };
 
 export const checkAvailableStock = async ({
@@ -19,11 +37,29 @@ export const checkAvailableStock = async ({
   }).session(session);
 
   if (!inventory) {
-    throw new AppError("Inventory not found", 404);
+    const { shopLabel, productLabel } = await getStockLabel({
+      shopId,
+      productId,
+      session,
+    });
+
+    throw new AppError(
+      `No stock record found in ${shopLabel} for ${productLabel}`,
+      404
+    );
   }
 
   if (inventory.quantity < quantity) {
-    throw new AppError("Insufficient stock", 400);
+    const { shopLabel, productLabel } = await getStockLabel({
+      shopId,
+      productId,
+      session,
+    });
+
+    throw new AppError(
+      `Insufficient stock in ${shopLabel} for ${productLabel}. Available: ${inventory.quantity}, requested: ${quantity}`,
+      400
+    );
   }
 
   return inventory;
@@ -36,6 +72,12 @@ export const increaseStock = async ({
   quantity,
   session = null,
 }) => {
+  const numericQuantity = Number(quantity);
+
+  if (!Number.isFinite(numericQuantity) || numericQuantity <= 0) {
+    throw new AppError("Quantity must be a positive number", 400);
+  }
+
   let inventory = await Inventory.findOne({
     shopId,
     productId,
@@ -48,7 +90,7 @@ export const increaseStock = async ({
           shopId,
           productId,
           unitId,
-          quantity,
+          quantity: numericQuantity,
           lastMovementAt: new Date(),
         },
       ],
@@ -58,13 +100,16 @@ export const increaseStock = async ({
     return createdInventory[0];
   }
 
-  inventory.quantity += Number(quantity);
-  inventory.unitId = unitId;
-  inventory.lastMovementAt = new Date();
+  const updatedInventory = await Inventory.findOneAndUpdate(
+    { shopId, productId },
+    {
+      $inc: { quantity: numericQuantity },
+      $set: { unitId, lastMovementAt: new Date() },
+    },
+    { returnDocument: "after", runValidators: true, session }
+  );
 
-  await inventory.save({ session });
-
-  return inventory;
+  return updatedInventory;
 };
 
 export const decreaseStock = async ({
@@ -73,19 +118,37 @@ export const decreaseStock = async ({
   quantity,
   session = null,
 }) => {
-  const inventory = await checkAvailableStock({
+  const numericQuantity = Number(quantity);
+
+  if (!Number.isFinite(numericQuantity) || numericQuantity <= 0) {
+    throw new AppError("Quantity must be a positive number", 400);
+  }
+
+  const inventory = await Inventory.findOneAndUpdate(
+    {
+      shopId,
+      productId,
+      quantity: { $gte: numericQuantity },
+    },
+    {
+      $inc: { quantity: -numericQuantity },
+      $set: { lastMovementAt: new Date() },
+    },
+    { returnDocument: "after", runValidators: true, session }
+  );
+
+  if (inventory) {
+    return inventory;
+  }
+
+  await checkAvailableStock({
     shopId,
     productId,
-    quantity,
+    quantity: numericQuantity,
     session,
   });
 
-  inventory.quantity -= Number(quantity);
-  inventory.lastMovementAt = new Date();
-
-  await inventory.save({ session });
-
-  return inventory;
+  throw new AppError("Unable to decrease stock", 500);
 };
 
 export const createMovement = async ({

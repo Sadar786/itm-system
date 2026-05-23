@@ -285,7 +285,7 @@ export const updateInventory = async (req, res) => {
     }
 
     const updated = await Inventory.findByIdAndUpdate(id, updateData, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     })
       .populate("shopId", "name code")

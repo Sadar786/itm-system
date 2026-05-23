@@ -248,7 +248,7 @@ export const updateWasteItem = async (req, res) => {
     }
 
     const updated = await WasteItem.findByIdAndUpdate(id, updateData, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     })
       .populate("wasteId")

@@ -68,27 +68,42 @@ export const createTransferService = async ({
         throw new AppError("Invalid transfer item data", 400);
       }
 
-      await decreaseStock({
+      const numericQuantity = Number(quantity);
+      const fromInventory = await decreaseStock({
         shopId: fromShopId,
         productId,
-        quantity: Number(quantity),
+        quantity: numericQuantity,
         session,
       });
 
-      await increaseStock({
+      const toInventory = await increaseStock({
         shopId: toShopId,
         productId,
         unitId,
-        quantity: Number(quantity),
+        quantity: numericQuantity,
         session,
       });
+
+      if (
+        fromInventory.shopId.toString() !== fromShopId.toString() ||
+        fromInventory.productId.toString() !== productId.toString()
+      ) {
+        throw new AppError("Transfer failed: sender stock was not reduced", 500);
+      }
+
+      if (
+        toInventory.shopId.toString() !== toShopId.toString() ||
+        toInventory.productId.toString() !== productId.toString()
+      ) {
+        throw new AppError("Transfer failed: receiver stock was not increased", 500);
+      }
 
       await TransferItem.create(
         [
           {
             transferId: transferDoc._id,
             productId,
-            quantity: Number(quantity),
+            quantity: numericQuantity,
             unitId,
             remarks: itemRemarks,
           },
@@ -100,8 +115,8 @@ export const createTransferService = async ({
         shopId: fromShopId,
         productId,
         unitId,
-        quantity: Number(quantity),
-        quantityEffect: -Number(quantity),
+        quantity: numericQuantity,
+        quantityEffect: -numericQuantity,
         movementType: "TRANSFER_OUT",
         fromShopId,
         toShopId,
@@ -117,8 +132,8 @@ export const createTransferService = async ({
         shopId: toShopId,
         productId,
         unitId,
-        quantity: Number(quantity),
-        quantityEffect: Number(quantity),
+        quantity: numericQuantity,
+        quantityEffect: numericQuantity,
         movementType: "TRANSFER_IN",
         fromShopId,
         toShopId,

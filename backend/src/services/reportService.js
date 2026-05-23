@@ -38,8 +38,13 @@ const startOfUtcDay = (value) => {
   ));
 };
 
-const getTransferMatrixDateRange = ({ startDate, endDate }) => {
-  const anchor = startDate || endDate || new Date();
+const getTransferMatrixDateRange = ({ month, startDate, endDate }) => {
+  if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    throw new AppError("Invalid month. Use YYYY-MM", 400);
+  }
+
+  const monthDate = month ? new Date(`${month}-01T00:00:00.000Z`) : null;
+  const anchor = startDate || endDate || monthDate || new Date();
   const anchorDate = new Date(anchor);
   const start = startDate
     ? startOfUtcDay(startDate)
@@ -64,6 +69,76 @@ const getTransferMatrixDateRange = ({ startDate, endDate }) => {
   return Array.from({ length: dayCount }, (_, index) => (
     new Date(start.getTime() + index * DAY_MS)
   ));
+};
+
+const getShopName = (shop) => shop?.name || shop?.code || "";
+
+const getShopId = (shop) => shop?._id?.toString() || shop?.toString() || "";
+
+const buildMonthlyTransferRows = ({ dates, direction, transfers, items }) => {
+  const transferById = new Map(
+    transfers.map((transfer) => [transfer._id.toString(), transfer])
+  );
+  const groupedRows = new Map();
+  const totalsByShopPair = new Map();
+
+  items.forEach((item) => {
+    const transfer = transferById.get(item.transferId.toString());
+    if (!transfer) {
+      return;
+    }
+
+    const productId = item.productId?._id?.toString() || item.productId?.toString();
+    const unitIdValue = item.unitId?._id?.toString() || item.unitId?.toString();
+    const existingShop = direction === "out" ? transfer.fromShopId : transfer.toShopId;
+    const transferShop = direction === "out" ? transfer.toShopId : transfer.fromShopId;
+    const shopPairKey = [getShopId(existingShop), getShopId(transferShop)].join("|");
+    const groupKey = [
+      productId,
+      unitIdValue,
+      shopPairKey,
+    ].join("|");
+    const dayKey = `day_${toDateKey(transfer.transferDate)}`;
+    const quantity = Number(item.quantity) || 0;
+
+    totalsByShopPair.set(
+      shopPairKey,
+      (totalsByShopPair.get(shopPairKey) || 0) + quantity
+    );
+
+    if (!groupedRows.has(groupKey)) {
+      const row = {
+        _shopPairKey: shopPairKey,
+        itemCode: item.productId?.itemCode || "",
+        description: item.productId?.description || "",
+        existingShopName: getShopName(existingShop),
+        transferShopName: getShopName(transferShop),
+        uom: item.unitId?.shortName || item.unitId?.name || "",
+        total: 0,
+      };
+
+      dates.forEach((date) => {
+        row[`day_${toDateKey(date)}`] = 0;
+      });
+
+      groupedRows.set(groupKey, row);
+    }
+
+    const row = groupedRows.get(groupKey);
+    row[dayKey] = (row[dayKey] || 0) + quantity;
+    row.total += quantity;
+  });
+
+  groupedRows.forEach((row) => {
+    row.shopPairTotal = totalsByShopPair.get(row._shopPairKey) || 0;
+    delete row._shopPairKey;
+  });
+
+  return [...groupedRows.values()].sort((left, right) => {
+    const leftKey = `${left.itemCode}|${left.description}|${left.transferShopName}`;
+    const rightKey = `${right.itemCode}|${right.description}|${right.transferShopName}`;
+    return leftKey.localeCompare(rightKey, undefined, { numeric: true });
+  });
 };
 
 export const getCurrentStockReport = async ({ shopId } = {}) => {
@@ -180,6 +255,7 @@ export const getTransferMatrixReport = async ({
   shopId,
   fromShopId,
   toShopId,
+  month,
   startDate,
   endDate,
   status = "posted",
@@ -215,7 +291,7 @@ export const getTransferMatrixReport = async ({
     query.status = status;
   }
 
-  const dates = getTransferMatrixDateRange({ startDate, endDate });
+  const dates = getTransferMatrixDateRange({ month, startDate, endDate });
   const dateQuery = buildDateQuery({
     startDate: toDateKey(dates[0]),
     endDate: toDateKey(dates[dates.length - 1]),
@@ -297,6 +373,168 @@ export const getTransferMatrixReport = async ({
   });
 
   return { dates, rows };
+};
+
+export const getMonthlyTransferStockReport = async ({
+  shopId,
+  direction,
+  fromShopId,
+  toShopId,
+  month,
+  startDate,
+  endDate,
+  status = "posted",
+} = {}) => {
+  if (!shopId) {
+    throw new AppError("shopId is required", 400);
+  }
+
+  if (!isValidObjectId(shopId)) {
+    throw new AppError("Invalid shopId", 400);
+  }
+
+  if (!["out", "in"].includes(direction)) {
+    throw new AppError("direction must be out or in", 400);
+  }
+
+  if (fromShopId && !isValidObjectId(fromShopId)) {
+    throw new AppError("Invalid fromShopId", 400);
+  }
+
+  if (toShopId && !isValidObjectId(toShopId)) {
+    throw new AppError("Invalid toShopId", 400);
+  }
+
+  const dates = getTransferMatrixDateRange({ month, startDate, endDate });
+  const query = {
+    transferDate: buildDateQuery({
+      startDate: toDateKey(dates[0]),
+      endDate: toDateKey(dates[dates.length - 1]),
+    }),
+  };
+
+  if (direction === "out") {
+    query.fromShopId = shopId;
+    if (toShopId) {
+      query.toShopId = toShopId;
+    }
+  } else {
+    query.toShopId = shopId;
+    if (fromShopId) {
+      query.fromShopId = fromShopId;
+    }
+  }
+
+  if (status && status !== "all") {
+    query.status = status;
+  }
+
+  const transfers = await Transfer.find(query)
+    .sort({
+      transferDate: 1,
+      createdAt: 1,
+    })
+    .populate("fromShopId", "name code")
+    .populate("toShopId", "name code");
+
+  if (!transfers.length) {
+    return {
+      dates,
+      transferShopHeader:
+        direction === "out" ? "TO TRANSFER SHOP NAME" : "FROM SHOP NAME",
+      summaryTotalHeader:
+        direction === "out" ? "TOTAL TRANSFER" : "TOTAL INCOMING",
+      rows: [],
+    };
+  }
+
+  const items = await TransferItem.find({
+    transferId: { $in: transfers.map((transfer) => transfer._id) },
+  })
+    .populate("productId", "itemCode description")
+    .populate("unitId", "name shortName");
+
+  return {
+    dates,
+    transferShopHeader:
+      direction === "out" ? "TO TRANSFER SHOP NAME" : "FROM SHOP NAME",
+    summaryTotalHeader:
+      direction === "out" ? "TOTAL TRANSFER" : "TOTAL INCOMING",
+    rows: buildMonthlyTransferRows({ dates, direction, transfers, items }),
+  };
+};
+
+export const getAllShopMonthlyTransferStockReport = async ({
+  direction,
+  shopId,
+  month,
+  startDate,
+  endDate,
+  status = "posted",
+} = {}) => {
+  if (!["out", "in"].includes(direction)) {
+    throw new AppError("direction must be out or in", 400);
+  }
+
+  if (shopId && !isValidObjectId(shopId)) {
+    throw new AppError("Invalid shopId", 400);
+  }
+
+  const dates = getTransferMatrixDateRange({ month, startDate, endDate });
+  const query = {
+    transferDate: buildDateQuery({
+      startDate: toDateKey(dates[0]),
+      endDate: toDateKey(dates[dates.length - 1]),
+    }),
+  };
+
+  if (shopId) {
+    if (direction === "out") {
+      query.fromShopId = shopId;
+    } else {
+      query.toShopId = shopId;
+    }
+  }
+
+  if (status && status !== "all") {
+    query.status = status;
+  }
+
+  const transfers = await Transfer.find(query)
+    .sort({
+      transferDate: 1,
+      createdAt: 1,
+    })
+    .populate("fromShopId", "name code")
+    .populate("toShopId", "name code");
+
+  if (!transfers.length) {
+    return {
+      dates,
+      shopHeader: "SHOP NAME",
+      transferShopHeader:
+        direction === "out" ? "TRANSFER TO SHOP NAME" : "FROM SHOP NAME",
+      summaryTotalHeader:
+        direction === "out" ? "TOTAL TRANSFER" : "TOTAL INCOMING",
+      rows: [],
+    };
+  }
+
+  const items = await TransferItem.find({
+    transferId: { $in: transfers.map((transfer) => transfer._id) },
+  })
+    .populate("productId", "itemCode description")
+    .populate("unitId", "name shortName");
+
+  return {
+    dates,
+    shopHeader: "SHOP NAME",
+    transferShopHeader:
+      direction === "out" ? "TRANSFER TO SHOP NAME" : "FROM SHOP NAME",
+    summaryTotalHeader:
+      direction === "out" ? "TOTAL TRANSFER" : "TOTAL INCOMING",
+    rows: buildMonthlyTransferRows({ dates, direction, transfers, items }),
+  };
 };
 
 export const getMovementReport = async ({

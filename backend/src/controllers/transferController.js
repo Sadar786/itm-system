@@ -2,6 +2,9 @@
 import mongoose from "mongoose";
 import Transfer from "../models/Transfer.js";
 import TransferItem from "../models/TransferItem.js";
+import Product from "../models/Product.js";
+import Shop from "../models/Shop.js";
+import Unit from "../models/Unit.js";
 import { createTransferService } from "../services/transferService.js";
 
 
@@ -66,6 +69,18 @@ export const createTransfer = async (req, res) => {
       });
     }
 
+    const [fromShop, toShop] = await Promise.all([
+      Shop.findById(fromShopId).select("_id"),
+      Shop.findById(toShopId).select("_id"),
+    ]);
+
+    if (!fromShop || !toShop) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid transfer branch. fromShopId and toShopId must be existing shops",
+      });
+    }
+
     if (req.user.role !== "admin" && fromShopId.toString() !== userShopId(req)) {
       return res.status(403).json({
         success: false,
@@ -90,6 +105,30 @@ export const createTransfer = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: "Invalid productId or unitId in items",
+        });
+      }
+
+      const [product, unit, productIdAsShop] = await Promise.all([
+        Product.findById(item.productId).select("_id itemCode description"),
+        Unit.findById(item.unitId).select("_id"),
+        Shop.findById(item.productId).select("_id name code"),
+      ]);
+
+      if (!product) {
+        const badValueMessage = productIdAsShop
+          ? `Item productId is a shop id (${productIdAsShop.name || productIdAsShop.code}), not a product id`
+          : "Item productId must be an existing product";
+
+        return res.status(400).json({
+          success: false,
+          message: badValueMessage,
+        });
+      }
+
+      if (!unit) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid unitId for ${product.itemCode || product.description}`,
         });
       }
     }
@@ -352,7 +391,7 @@ export const updateTransfer = async (req, res) => {
     }
 
     const updated = await Transfer.findByIdAndUpdate(id, updateData, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     })
       .populate("fromShopId", "name code")
