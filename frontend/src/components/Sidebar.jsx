@@ -1,7 +1,8 @@
-import { Store } from 'lucide-react'
-import { BranchPanel } from './BranchPanel'
-import { ReportDatePanel } from './ReportDatePanel'
-import { SessionPanel } from './SessionPanel'
+import { Store } from "lucide-react";
+import { BranchPanel } from "./BranchPanel";
+import { ReportDatePanel } from "./ReportDatePanel";
+import { SessionPanel } from "./SessionPanel";
+import logo from "../assets/logo.png";
 
 export function Sidebar({
   busyKey,
@@ -32,7 +33,11 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="brand">
         <div className="brand-mark">
-          <Store size={24} />
+          <img
+            src={logo}
+            alt="Inventory Control logo"
+            className="brand-logo"
+          />
         </div>
         <div>
           <h1>Inventory Control</h1>
@@ -89,5 +94,5 @@ export function Sidebar({
         startDate={dateFilters.startDate}
       />
     </aside>
-  )
+  );
 }
