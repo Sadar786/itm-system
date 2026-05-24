@@ -981,8 +981,27 @@ tr.row-highlight td {
 
   .sidebar {
     min-height: auto;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
     border-right: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .sidebar,
+  .sidebar .panel,
+  .sidebar .brand,
+  .sidebar .login-panel,
+  .sidebar input,
+  .sidebar select,
+  .sidebar textarea {
+    min-width: 0;
+  }
+
+  .sidebar input,
+  .sidebar select,
+  .sidebar textarea {
+    width: 100%;
   }
 
   .report-grid {
@@ -1002,6 +1021,28 @@ tr.row-highlight td {
   .sidebar,
   .workspace {
     padding: 14px;
+  }
+
+  .sidebar {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .brand {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .brand h1 {
+    font-size: 15px;
+  }
+
+  .brand p {
+    font-size: 11px;
+  }
+
+  .panel {
+    min-width: 0;
   }
 
   .date-grid,
