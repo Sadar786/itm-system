@@ -9,10 +9,10 @@ import { authorizeRoles } from "../middleware/roleMiddleware.js";
 // create shop
 router.use(protect);
 
-router.post("/create", authorizeRoles("admin"), createShop);
+router.post("/create", authorizeRoles("admin", "shop_keeper"), createShop);
 router.get("/all", authorizeRoles("admin", "shop_keeper"), getAllShops);
 router.get("/single/:id", authorizeRoles("admin", "shop_keeper"), getSingleShop);
-router.put("/update/:id", authorizeRoles("admin"), updateShop);
+router.put("/update/:id", authorizeRoles("admin", "shop_keeper"), updateShop);
 router.delete("/delete/:id", authorizeRoles("admin"), deleteShop);
 
 export default router;

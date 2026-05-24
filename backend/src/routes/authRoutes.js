@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  forgotPassword,
   loginUser,
   signupUser,
   getAlUsers,
@@ -29,6 +30,7 @@ router.get(
 
 router.post("/login", loginUser);
 router.post("/signup", signupUser);
+router.post("/forgot-password", forgotPassword);
 
 router.use(protect);
 

@@ -12,6 +12,14 @@ export function Sidebar({
   onLogin,
   onLogout,
   onPasswordChange,
+  onSignup,
+  onForgotPassword,
+  onConfirmPasswordChange,
+  onAuthModeChange,
+  authMode,
+  name,
+  onNameChange,
+  confirmPassword,
   onRefreshInventory,
   onShopIdChange,
   password,
@@ -33,14 +41,22 @@ export function Sidebar({
       </div>
 
       <SessionPanel
+        authMode={authMode}
         busyKey={busyKey}
         email={email}
         isLoggedIn={isLoggedIn}
+        name={name}
+        onNameChange={onNameChange}
         onEmailChange={onEmailChange}
         onLogin={onLogin}
         onLogout={onLogout}
+        onSignup={onSignup}
+        onForgotPassword={onForgotPassword}
         onPasswordChange={onPasswordChange}
+        onConfirmPasswordChange={onConfirmPasswordChange}
+        onAuthModeChange={onAuthModeChange}
         password={password}
+        confirmPassword={confirmPassword}
         user={user}
       />
 

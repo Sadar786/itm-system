@@ -38,9 +38,80 @@ export const login = async ({ email, password }) => {
   return data
 }
 
+export const signup = async ({ name, email, password }) => {
+  const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password }),
+  })
+  const data = await response.json()
+
+  if (!response.ok || !data.token) {
+    throw new Error(data.message || 'Signup failed')
+  }
+
+  return data
+}
+
+export const forgotPassword = async ({ email, password }) => {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Password reset failed')
+  }
+
+  return data
+}
+
 export const getProducts = (token) => apiJson('/products?limit=500', token)
 
 export const getShops = (token) => apiJson('/shops/all', token)
+
+export const getCategories = (token) => apiJson('/meta/categories', token)
+export const getUnits = (token) => apiJson('/meta/units', token)
+
+export const createShop = ({ token, body }) =>
+  apiJson('/shops/create', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+export const updateShop = ({ token, shopId, body }) =>
+  apiJson(`/shops/update/${shopId}`, token, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+export const deleteShop = ({ token, shopId }) =>
+  apiJson(`/shops/delete/${shopId}`, token, {
+    method: 'DELETE',
+  })
+
+export const createProduct = ({ token, body }) =>
+  apiJson('/products/create', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+export const updateProduct = ({ token, productId, body }) =>
+  apiJson(`/products/update/${productId}`, token, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+export const deleteProduct = ({ token, productId }) =>
+  apiJson(`/products/delete/${productId}`, token, {
+    method: 'DELETE',
+  })
 
 export const getInventory = ({ token, shopId }) => {
   const params = new URLSearchParams()

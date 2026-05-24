@@ -9,15 +9,28 @@ import { StockView } from './features/stock/StockView'
 import { TransferStockModal } from './features/stock/TransferStockModal'
 import { TransferDetailModal } from './features/transfers/TransferDetailModal'
 import { TransfersView } from './features/transfers/TransfersView'
+import { AdminView } from './features/admin/AdminView'
+import { AdminShopModal } from './features/admin/AdminShopModal'
+import { AdminProductModal } from './features/admin/AdminProductModal'
 import {
   addInventoryStock,
+  createProduct,
+  createShop,
   createTransfer,
+  deleteProduct,
+  deleteShop,
   downloadReport,
+  forgotPassword,
+  getCategories,
   getInventory,
   getProducts,
   getShops,
   getTransfers,
+  getUnits,
   login,
+  signup,
+  updateProduct,
+  updateShop,
   API_BASE_URL,
 } from './services/api'
 import { currentMonth, formatProductName, todayDate } from './utils/format'
@@ -44,6 +57,9 @@ const PAGE_SIZE = 20
 function App() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [authMode, setAuthMode] = useState('login')
   const [token, setToken] = useState(() => localStorage.getItem('inventoryToken') || '')
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem('inventoryUser')
@@ -62,6 +78,28 @@ function App() {
   const [error, setError] = useState('')
   const [products, setProducts] = useState([])
   const [shops, setShops] = useState([])
+  const [categories, setCategories] = useState([])
+  const [units, setUnits] = useState([])
+  const [adminShopForm, setAdminShopForm] = useState({
+    name: '',
+    code: '',
+    location: '',
+    phone: '',
+    isActive: true,
+  })
+  const [adminProductForm, setAdminProductForm] = useState({
+    itemCode: '',
+    description: '',
+    categoryId: '',
+    defaultUnitId: '',
+    barcode: '',
+    isPerishable: false,
+    minimumStock: '',
+    reorderLevel: '',
+    notes: '',
+  })
+  const [selectedShopId, setSelectedShopId] = useState('')
+  const [selectedProductId, setSelectedProductId] = useState('')
   const [inventory, setInventory] = useState([])
   const [transfers, setTransfers] = useState([])
   const [transferPagination, setTransferPagination] = useState({
@@ -84,6 +122,9 @@ function App() {
   const [highlightedRowKeys, setHighlightedRowKeys] = useState([])
 
   const isLoggedIn = Boolean(token)
+  const isAdmin = user?.role === 'admin'
+  const isShopkeeper = user?.role === 'shop_keeper'
+  const canManage = isAdmin || isShopkeeper
 
   const selectedProduct = useMemo(
     () => products.find((product) => product._id === addStock.productId),
@@ -246,6 +287,16 @@ function App() {
     setShops(data.data || [])
   }
 
+  const loadCategories = async (authToken = token) => {
+    const data = await getCategories(authToken)
+    setCategories(data.data || [])
+  }
+
+  const loadUnits = async (authToken = token) => {
+    const data = await getUnits(authToken)
+    setUnits(data.data || [])
+  }
+
   const loadInventory = async (authToken = token, targetShopId = shopId) => {
     const data = await getInventory({
       token: authToken,
@@ -288,6 +339,8 @@ function App() {
         await Promise.all([
           loadProducts(token),
           loadShops(token),
+          loadCategories(token),
+          loadUnits(token),
           loadInventory(token, shopId),
           loadTransfers({ authToken: token }),
         ])
@@ -328,6 +381,70 @@ function App() {
     }
   }
 
+  const handleSignup = async (event) => {
+    event.preventDefault()
+    setError('')
+    setMessage('')
+    setBusyKey('signup')
+
+    if (!name.trim() || !email.trim() || !password) {
+      setError('Name, email, and password are required.')
+      setBusyKey('')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      setBusyKey('')
+      return
+    }
+
+    try {
+      const data = await signup({ name: name.trim(), email: email.trim(), password })
+
+      localStorage.setItem('inventoryToken', data.token)
+      localStorage.setItem('inventoryUser', JSON.stringify(data.user))
+      setToken(data.token)
+      setUser(data.user)
+      setShopId(data.user?.shopId || '')
+      setTransfer((current) => ({
+        ...current,
+        fromShopId: data.user?.shopId || '',
+      }))
+      setMessage('Signup successful. Logged in and inventory is loading.')
+      setAuthMode('login')
+    } catch (signupError) {
+      setError(signupError.message)
+    } finally {
+      setBusyKey('')
+    }
+  }
+
+  const handleForgotPassword = async (event) => {
+    event.preventDefault()
+    setError('')
+    setMessage('')
+    setBusyKey('forgot')
+
+    if (!email.trim() || !password) {
+      setError('Email and new password are required.')
+      setBusyKey('')
+      return
+    }
+
+    try {
+      await forgotPassword({ email: email.trim(), password })
+      setMessage('Password reset successful. You can now log in.')
+      setAuthMode('login')
+      setPassword('')
+      setConfirmPassword('')
+    } catch (resetError) {
+      setError(resetError.message)
+    } finally {
+      setBusyKey('')
+    }
+  }
+
   const handleLogout = () => {
     localStorage.removeItem('inventoryToken')
     localStorage.removeItem('inventoryUser')
@@ -345,6 +462,7 @@ function App() {
     })
     setMessage('')
     setError('')
+    setAuthMode('login')
   }
 
   const handleShopIdChange = (value) => {
@@ -372,12 +490,223 @@ function App() {
       await Promise.all([
         loadProducts(),
         loadShops(),
+        loadCategories(),
+        loadUnits(),
         loadInventory(),
         loadTransfers(),
       ])
       setMessage('Current stock refreshed.')
     } catch (refreshError) {
       setError(refreshError.message)
+    } finally {
+      setBusyKey('')
+    }
+  }
+
+  const resetShopForm = () => {
+    setAdminShopForm({
+      name: '',
+      code: '',
+      location: '',
+      phone: '',
+      isActive: true,
+    })
+    setSelectedShopId('')
+  }
+
+  const resetProductForm = () => {
+    setAdminProductForm({
+      itemCode: '',
+      description: '',
+      categoryId: '',
+      defaultUnitId: '',
+      barcode: '',
+      isPerishable: false,
+      minimumStock: '',
+      reorderLevel: '',
+      notes: '',
+    })
+    setSelectedProductId('')
+  }
+
+  const handleShopFormChange = (field, value) => {
+    setAdminShopForm((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }
+
+  const handleProductFormChange = (field, value) => {
+    setAdminProductForm((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }
+
+  const handleShopEdit = (shop) => {
+    setSelectedShopId(shop._id)
+    setAdminShopForm({
+      name: shop.name || '',
+      code: shop.code || '',
+      location: shop.location || '',
+      phone: shop.phone || '',
+      isActive: Boolean(shop.isActive),
+    })
+  }
+
+  const handleProductEdit = (product) => {
+    setSelectedProductId(product._id)
+    setAdminProductForm({
+      itemCode: product.itemCode || '',
+      description: product.description || '',
+      categoryId: product.categoryId?._id || product.categoryId || '',
+      defaultUnitId: product.defaultUnitId?._id || product.defaultUnitId || '',
+      barcode: product.barcode || '',
+      isPerishable: Boolean(product.isPerishable),
+      minimumStock: product.minimumStock ?? '',
+      reorderLevel: product.reorderLevel ?? '',
+      notes: product.notes || '',
+    })
+  }
+
+  const handleShopFormCancel = () => {
+    resetShopForm()
+    setActiveModal(null)
+  }
+
+  const handleProductFormCancel = () => {
+    resetProductForm()
+    setActiveModal(null)
+  }
+
+  const handleDeleteShop = async (shopId) => {
+    if (!window.confirm('Delete this branch?')) return
+    setBusyKey('admin-shop-delete')
+    setError('')
+    setMessage('')
+
+    try {
+      await deleteShop({ token, shopId })
+      setMessage('Branch deleted successfully.')
+      await Promise.all([loadShops(), loadInventory(), loadTransfers()])
+      resetShopForm()
+    } catch (deleteError) {
+      setError(deleteError.message)
+    } finally {
+      setBusyKey('')
+    }
+  }
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm('Delete this product?')) return
+    setBusyKey('admin-product-delete')
+    setError('')
+    setMessage('')
+
+    try {
+      await deleteProduct({ token, productId })
+      setMessage('Product deleted successfully.')
+      await Promise.all([loadProducts(), loadInventory()])
+      resetProductForm()
+    } catch (deleteError) {
+      setError(deleteError.message)
+    } finally {
+      setBusyKey('')
+    }
+  }
+
+  const handleShopFormSubmit = async (event) => {
+    event.preventDefault()
+    setError('')
+    setMessage('')
+
+    const trimmedName = adminShopForm.name.trim()
+    const trimmedCode = adminShopForm.code.trim()
+
+    if (!trimmedName || !trimmedCode) {
+      setError('Branch name and code are required.')
+      return
+    }
+
+    setBusyKey(selectedShopId ? 'admin-shop-update' : 'admin-shop-create')
+
+    try {
+      const body = {
+        ...adminShopForm,
+        name: trimmedName,
+        code: trimmedCode,
+      }
+
+      if (selectedShopId) {
+        await updateShop({ token, shopId: selectedShopId, body })
+        setMessage('Branch updated successfully.')
+      } else {
+        const result = await createShop({ token, body })
+        setMessage('Branch created successfully.')
+
+        if (user?.role === 'shop_keeper' && result.user?.shopId) {
+          const updatedUser = {
+            ...user,
+            shopId: result.user.shopId,
+          }
+          localStorage.setItem('inventoryUser', JSON.stringify(updatedUser))
+          setUser(updatedUser)
+          setShopId(result.user.shopId)
+          setTransfer((current) => ({
+            ...current,
+            fromShopId: result.user.shopId,
+          }))
+          await loadInventory(token, result.user.shopId)
+        }
+      }
+
+      await loadShops()
+      setActiveModal(null)
+      resetShopForm()
+    } catch (shopError) {
+      setError(shopError.message)
+    } finally {
+      setBusyKey('')
+    }
+  }
+
+  const handleProductFormSubmit = async (event) => {
+    event.preventDefault()
+    setError('')
+    setMessage('')
+
+    const trimmedCode = adminProductForm.itemCode.trim()
+    const trimmedDescription = adminProductForm.description.trim()
+
+    if (!trimmedCode || !trimmedDescription || !adminProductForm.categoryId || !adminProductForm.defaultUnitId) {
+      setError('Product code, description, category, and unit are required.')
+      return
+    }
+
+    setBusyKey(selectedProductId ? 'admin-product-update' : 'admin-product-create')
+
+    try {
+      const body = {
+        ...adminProductForm,
+        itemCode: trimmedCode,
+        description: trimmedDescription,
+        minimumStock: Number(adminProductForm.minimumStock || 0),
+        reorderLevel: Number(adminProductForm.reorderLevel || 0),
+      }
+
+      if (selectedProductId) {
+        await updateProduct({ token, productId: selectedProductId, body })
+        setMessage('Product updated successfully.')
+      } else {
+        await createProduct({ token, body })
+        setMessage('Product created successfully.')
+      }
+
+      await Promise.all([loadProducts(), loadInventory()])
+      setActiveModal(null)
+      resetProductForm()
+    } catch (productError) {
+      setError(productError.message)
     } finally {
       setBusyKey('')
     }
@@ -440,6 +769,20 @@ function App() {
     }))
     setTransferProductSearch('')
     setActiveModal('transfer-stock')
+  }
+
+  const openCreateShopModal = () => {
+    setError('')
+    setMessage('')
+    resetShopForm()
+    setActiveModal('shop-create')
+  }
+
+  const openCreateProductModal = () => {
+    setError('')
+    setMessage('')
+    resetProductForm()
+    setActiveModal('product-create')
   }
 
   const closeModal = () => {
@@ -643,17 +986,25 @@ function App() {
   return (
     <main className="app-shell">
       <Sidebar
+        authMode={authMode}
         busyKey={busyKey}
         dateFilters={dateFilters}
         email={email}
         isLoggedIn={isLoggedIn}
+        name={name}
+        onNameChange={setName}
         onEmailChange={setEmail}
         onLogin={handleLogin}
         onLogout={handleLogout}
+        onSignup={handleSignup}
+        onForgotPassword={handleForgotPassword}
         onPasswordChange={setPassword}
+        onConfirmPasswordChange={setConfirmPassword}
+        onAuthModeChange={setAuthMode}
         onRefreshInventory={handleRefreshInventory}
         onShopIdChange={handleShopIdChange}
         password={password}
+        confirmPassword={confirmPassword}
         setDateFilters={setDateFilters}
         shopId={shopId}
         shops={shops}
@@ -662,7 +1013,7 @@ function App() {
 
       <section className="workspace">
         <WorkspaceHeader activeView={activeView} isLoggedIn={isLoggedIn} />
-        <ViewTabs activeView={activeView} onChange={setActiveView} />
+        <ViewTabs activeView={activeView} isAdmin={canManage} onChange={setActiveView} />
         <Notice error={error} message={message} />
 
         {activeView === 'stock' ? (
@@ -684,6 +1035,29 @@ function App() {
             busyKey={busyKey}
             isLoggedIn={isLoggedIn}
             onDownload={handleDownload}
+          />
+        ) : activeView === 'admin' ? (
+          <AdminView
+            busyKey={busyKey}
+            categories={categories}
+            isLoggedIn={isLoggedIn}
+            isShopkeeper={isShopkeeper}
+            user={user}
+            products={products}
+            shops={shops}
+            units={units}
+            onCreateShop={openCreateShopModal}
+            onCreateProduct={openCreateProductModal}
+            onProductDelete={handleDeleteProduct}
+            onProductEdit={(product) => {
+              handleProductEdit(product)
+              setActiveModal('product-edit')
+            }}
+            onShopDelete={handleDeleteShop}
+            onShopEdit={(shop) => {
+              handleShopEdit(shop)
+              setActiveModal('shop-edit')
+            }}
           />
         ) : (
           <TransfersView
@@ -726,6 +1100,30 @@ function App() {
           sourceShops={sourceShops}
           transferableProducts={filteredTransferProducts}
           transfer={transfer}
+        />
+
+        <AdminShopModal
+          busyKey={busyKey}
+          isOpen={activeModal === 'shop-create' || activeModal === 'shop-edit'}
+          isLoggedIn={isLoggedIn}
+          onClose={closeModal}
+          onChange={handleShopFormChange}
+          onSubmit={handleShopFormSubmit}
+          shopForm={adminShopForm}
+          isEdit={activeModal === 'shop-edit'}
+        />
+
+        <AdminProductModal
+          busyKey={busyKey}
+          categories={categories}
+          isOpen={activeModal === 'product-create' || activeModal === 'product-edit'}
+          isLoggedIn={isLoggedIn}
+          onClose={closeModal}
+          onChange={handleProductFormChange}
+          onSubmit={handleProductFormSubmit}
+          productForm={adminProductForm}
+          units={units}
+          isEdit={activeModal === 'product-edit'}
         />
 
         <TransferDetailModal

@@ -10,6 +10,7 @@ import transferRoutes from "./routes/transferRoutes.js";
 import wasteItemRoutes from "./routes/wasteItemRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import devRoutes from "./routes/devRoutes.js";
+import metaRoutes from "./routes/metaRoutes.js";
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use("/api/inventory", inventoryRoutes);
 app.use("/api/transfers", transferRoutes);
 app.use("/api/waste_items", wasteItemRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/meta", metaRoutes);
 app.use("/api/dev", devRoutes);
 
 app.get("/", (req, res) => {

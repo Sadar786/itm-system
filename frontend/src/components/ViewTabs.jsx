@@ -1,8 +1,8 @@
-import { FileSpreadsheet, Repeat2, TableProperties } from 'lucide-react'
+import { FileSpreadsheet, Repeat2, Settings2, TableProperties } from 'lucide-react'
 
-export function ViewTabs({ activeView, onChange }) {
+export function ViewTabs({ activeView, onChange, isAdmin }) {
   return (
-    <div className="view-tabs three-tabs" aria-label="Main view">
+    <div className={`view-tabs ${isAdmin ? 'four-tabs' : 'three-tabs'}`} aria-label="Main view">
       <button
         type="button"
         className={activeView === 'stock' ? 'active' : ''}
@@ -27,6 +27,16 @@ export function ViewTabs({ activeView, onChange }) {
         <Repeat2 size={16} />
         Transfers
       </button>
+      {isAdmin ? (
+        <button
+          type="button"
+          className={activeView === 'admin' ? 'active' : ''}
+          onClick={() => onChange('admin')}
+        >
+          <Settings2 size={16} />
+          Manage
+        </button>
+      ) : null}
     </div>
   )
 }

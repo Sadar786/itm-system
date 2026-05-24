@@ -106,6 +106,42 @@ const loginUser = async (req, res) => {
   }
 };
 
+// FORGOT PASSWORD
+const forgotPassword = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and new password are required',
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    user.password = password;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password updated successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 //GET /api/users
 const getAlUsers = async (req, res) => {
   try {
@@ -241,4 +277,4 @@ const getUserShop = async (req, res) => {
     });
   }
 };
-export { loginUser, signupUser, getAlUsers, getUserById, updateUser, deleteUser, getUserShop };
+export { loginUser, signupUser, forgotPassword, getAlUsers, getUserById, updateUser, deleteUser, getUserShop };

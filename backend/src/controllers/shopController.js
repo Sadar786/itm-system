@@ -1,4 +1,5 @@
 import Shop from "../models/Shop.js";
+import User from "../models/User.js";
 
 // ==============================
 // CREATE SHOP
@@ -6,10 +7,7 @@ import Shop from "../models/Shop.js";
 const createShop = async (req, res) => {
     try {
   
-        const shopkeeperId = req.user.id;
-        // For debugging
-        console.log(shopkeeperId)
-       
+        const shopkeeperId = req.user.role === "shop_keeper" ? req.user.id : undefined;
 
         let {
             name,
@@ -18,6 +16,19 @@ const createShop = async (req, res) => {
             location,
             phone,
         } = req.body;
+
+        // ==============================
+        // SHOPKEEPER LIMITS
+        // ==============================
+        if (req.user.role === "shop_keeper") {
+            const existingShop = await Shop.findOne({ shopkeeperId: req.user.id });
+            if (existingShop) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Shopkeepers can only create one shop.",
+                });
+            }
+        }
 
         // ==============================
         // VALIDATION
@@ -64,10 +75,27 @@ const createShop = async (req, res) => {
             shopkeeperId,
         });
 
+        let updatedUser = null;
+
+        if (req.user.role === "shop_keeper") {
+            updatedUser = await User.findByIdAndUpdate(
+                req.user.id,
+                { shopId: newShop._id },
+                { new: true }
+            ).select("-password");
+        }
+
         return res.status(201).json({
             success: true,
             message: "Shop created successfully",
             data: newShop,
+            user: updatedUser ? {
+              id: updatedUser._id,
+              name: updatedUser.name,
+              email: updatedUser.email,
+              role: updatedUser.role,
+              shopId: updatedUser.shopId,
+            } : undefined,
         });
 
     } catch (error) {
@@ -85,7 +113,11 @@ const createShop = async (req, res) => {
 // ==============================
 const getAllShops = async (req, res) => {
     try {
-        const shops = await Shop.find()
+        const query = req.user.role === "shop_keeper"
+            ? { shopkeeperId: req.user.id }
+            : {};
+
+        const shops = await Shop.find(query)
             .select("-__v")
             .sort({ createdAt: -1 });
 
@@ -118,6 +150,13 @@ const getSingleShop = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 message: "Shop not found",
+            });
+        }
+
+        if (req.user.role === "shop_keeper" && shop.shopkeeperId?.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized access",
             });
         }
 
@@ -165,13 +204,12 @@ const updateShop = async (req, res) => {
         // ==============================
         // AUTHORIZATION
         // ==============================
-        // if (shop.shopkeeperId?.toString() !== req.user.id) {
-        //     console.log("shopkeeperId: ", shop.shopkeeperId?.toString(),"  ", req.user.id);
-        //     return res.status(403).json({
-        //         success: false,
-        //         message: "Unauthorized access",
-        //     });
-        // }
+        if (req.user.role === "shop_keeper" && shop.shopkeeperId?.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized access",
+            });
+        }
 
         // ==============================
         // CHECK DUPLICATE NAME

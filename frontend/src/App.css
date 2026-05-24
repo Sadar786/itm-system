@@ -243,7 +243,53 @@ button:disabled {
   background: #e2e8f0;
 }
 
+.login-panel {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .login-panel button[type='submit'] {
+  width: 100%;
+}
+
+.auth-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.auth-switch button {
+  height: 36px;
+  border-radius: calc(var(--radius) - 2px);
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: none;
+}
+
+.auth-switch button.active {
+  color: #0f172a;
+  background: #ccfbf1;
+  box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.22);
+}
+
+.auth-note {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.08);
+  color: #dbeafe;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.auth-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-actions .secondary-action {
   width: 100%;
 }
 
@@ -311,6 +357,66 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.admin-page {
+  margin-top: 16px;
+  display: grid;
+  gap: 16px;
+}
+
+.admin-page .admin-sections {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-panel {
+  padding: 18px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-form {
+  margin-bottom: 18px;
+}
+
+.admin-form .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.table-actions-cell {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.admin-table-wrap table {
+  width: 100%;
+}
+
+.admin-table-wrap .empty-cell {
+  text-align: center;
+  padding: 18px 0;
 }
 
 .workspace {
@@ -388,6 +494,10 @@ button:disabled {
 
 .view-tabs.three-tabs {
   grid-template-columns: 1fr 1fr 1fr;
+}
+
+.view-tabs.four-tabs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .view-tabs button {
