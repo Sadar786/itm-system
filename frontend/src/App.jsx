@@ -305,6 +305,99 @@ function App() {
     }
   }, [filteredInventory, stockSummary.totalProducts, stockSummary.totalQuantity])
 
+  const analyticsMetrics = useMemo(() => {
+    const branchTotals = new Map()
+    const productTotals = new Map()
+    const uniqueBranches = new Set()
+    const uniqueProducts = new Set()
+    let totalQuantity = 0
+    let lowStockRows = 0
+    let highStockRows = 0
+    let maxQuantityRow = 0
+    let maxProduct = null
+
+    inventory.forEach((item) => {
+      const quantity = Number(item.quantity || 0)
+      const shopKey = item.shopId?._id || item.shopId
+      const productKey = item.productId?._id || item.productId
+      const reorderLevel = Number(item.productId?.reorderLevel || 0)
+
+      if (shopKey) {
+        uniqueBranches.add(shopKey)
+        branchTotals.set(shopKey, (branchTotals.get(shopKey) || 0) + quantity)
+      }
+
+      if (productKey) {
+        uniqueProducts.add(productKey)
+        productTotals.set(productKey, (productTotals.get(productKey) || 0) + quantity)
+      }
+
+      totalQuantity += quantity
+
+      if (reorderLevel > 0 && quantity <= reorderLevel) {
+        lowStockRows += 1
+      }
+
+      if (reorderLevel > 0 && quantity >= reorderLevel * 3) {
+        highStockRows += 1
+      }
+
+      if (quantity > maxQuantityRow) {
+        maxQuantityRow = quantity
+        maxProduct = item.productId
+      }
+    })
+
+    let topBranch = { label: '-', quantity: 0 }
+    branchTotals.forEach((quantity, branchId) => {
+      if (quantity > topBranch.quantity) {
+        const shop = shops.find((item) => item._id === branchId || item.code === branchId)
+        topBranch = {
+          label: shop?.name || shop?.code || branchId,
+          quantity,
+        }
+      }
+    })
+
+    let topProduct = { label: '-', quantity: 0 }
+    productTotals.forEach((quantity, productId) => {
+      if (quantity > topProduct.quantity) {
+        const product = products.find(
+          (item) => item._id === productId || item.itemCode === productId,
+        )
+        topProduct = {
+          label: product?.description || product?.itemCode || productId,
+          quantity,
+        }
+      }
+    })
+
+    const totalTransferredQuantity = transfers.reduce((sum, transfer) => {
+      const transferQuantity = transfer.items?.reduce(
+        (itemSum, item) => itemSum + Number(item.quantity || 0),
+        0,
+      )
+      return sum + (transferQuantity || 0)
+    }, 0)
+
+    return {
+      branchCount: uniqueBranches.size,
+      productCount: uniqueProducts.size,
+      inventoryRows: inventory.length,
+      totalQuantity,
+      lowStockRows,
+      highStockRows,
+      maxQuantity: maxQuantityRow,
+      maxProductName: maxProduct?.description || maxProduct?.itemCode || '-',
+      topBranchLabel: topBranch.label,
+      topBranchQuantity: topBranch.quantity,
+      topProductLabel: topProduct.label,
+      topProductQuantity: topProduct.quantity,
+      transferCount: transfers.length,
+      totalTransferredQuantity,
+    }
+  }, [inventory, transfers, products, shops])
+
   const loadProducts = async (authToken = token) => {
     const data = await getProducts(authToken)
     setProducts(data.data || [])

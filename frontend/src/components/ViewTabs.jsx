@@ -1,8 +1,8 @@
-import { FileSpreadsheet, Repeat2, Settings2, TableProperties } from 'lucide-react'
+import { BarChart3, FileSpreadsheet, Repeat2, Settings2, TableProperties } from 'lucide-react'
 
 export function ViewTabs({ activeView, onChange, isAdmin }) {
   return (
-    <div className={`view-tabs ${isAdmin ? 'four-tabs' : 'three-tabs'}`} aria-label="Main view">
+    <div className={`view-tabs ${isAdmin ? 'five-tabs' : 'four-tabs'}`} aria-label="Main view">
       <button
         type="button"
         className={activeView === 'stock' ? 'active' : ''}
@@ -18,6 +18,14 @@ export function ViewTabs({ activeView, onChange, isAdmin }) {
       >
         <FileSpreadsheet size={16} />
         Reports
+      </button>
+      <button
+        type="button"
+        className={activeView === 'analytics' ? 'active' : ''}
+        onClick={() => onChange('analytics')}
+      >
+        <BarChart3 size={16} />
+        Analytics
       </button>
       <button
         type="button"

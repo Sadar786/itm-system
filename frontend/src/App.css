@@ -509,6 +509,10 @@ button:disabled {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.view-tabs.five-tabs {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .view-tabs button {
   min-width: 95px;
   color: #475467;
