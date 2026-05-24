@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: inventory-backend
+    env: node
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    rootDirectory: backend
+    envVars:
+      - key: MONGO_URI
+        value: "<YOUR_MONGO_URI>"
+      - key: JWT_SECRET
+        value: "<YOUR_JWT_SECRET>"
+      - key: NODE_ENV
+        value: production
+  - type: static_site
+    name: inventory-frontend
+    plan: free
+    branch: main
+    rootDirectory: frontend
+    buildCommand: npm install && npm run build
+    publishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: "https://inventory-backend.onrender.com/api"
