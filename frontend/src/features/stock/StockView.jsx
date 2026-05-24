@@ -10,6 +10,7 @@ export function StockView({
   onStockSearchChange,
   stockHasMore,
   stockSummary,
+  stockAnalytics,
   stockSearch,
   visibleInventory,
 }) {
@@ -31,6 +32,25 @@ export function StockView({
         <article className="summary-card">
           <span>Last Movement</span>
           <strong>{stockSummary.lastMovementDate || '-'}</strong>
+        </article>
+      </div>
+
+      <div className="analytics-grid">
+        <article className="summary-card analytics-card">
+          <span>Branches In View</span>
+          <strong>{stockAnalytics.branchCount}</strong>
+        </article>
+        <article className="summary-card analytics-card">
+          <span>High Stock Rows</span>
+          <strong>{stockAnalytics.highStockCount}</strong>
+        </article>
+        <article className="summary-card analytics-card">
+          <span>Average Qty / Product</span>
+          <strong>{stockAnalytics.averageQuantity.toFixed(3)}</strong>
+        </article>
+        <article className="summary-card analytics-card">
+          <span>Max Quantity</span>
+          <strong>{stockAnalytics.maxQuantity.toFixed(3)}</strong>
         </article>
       </div>
 

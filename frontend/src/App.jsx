@@ -9,6 +9,7 @@ import { StockView } from './features/stock/StockView'
 import { TransferStockModal } from './features/stock/TransferStockModal'
 import { TransferDetailModal } from './features/transfers/TransferDetailModal'
 import { TransfersView } from './features/transfers/TransfersView'
+import { AnalyticsView } from './features/analytics/AnalyticsView'
 import { AdminView } from './features/admin/AdminView'
 import { AdminShopModal } from './features/admin/AdminShopModal'
 import { AdminProductModal } from './features/admin/AdminProductModal'
@@ -276,6 +277,33 @@ function App() {
         : '',
     }
   }, [filteredInventory])
+
+  const stockAnalytics = useMemo(() => {
+    const branchIds = new Set()
+    let highStockCount = 0
+    let maxQuantity = 0
+
+    filteredInventory.forEach((item) => {
+      const quantity = Number(item.quantity || 0)
+      const shopKey = item.shopId?._id || item.shopId
+      const reorderLevel = Number(item.productId?.reorderLevel || 0)
+
+      if (shopKey) branchIds.add(shopKey)
+      if (quantity > maxQuantity) maxQuantity = quantity
+      if (reorderLevel > 0 && quantity > reorderLevel * 2) {
+        highStockCount += 1
+      }
+    })
+
+    return {
+      branchCount: branchIds.size,
+      averageQuantity: stockSummary.totalProducts
+        ? stockSummary.totalQuantity / stockSummary.totalProducts
+        : 0,
+      highStockCount,
+      maxQuantity,
+    }
+  }, [filteredInventory, stockSummary.totalProducts, stockSummary.totalQuantity])
 
   const loadProducts = async (authToken = token) => {
     const data = await getProducts(authToken)
@@ -1027,8 +1055,14 @@ function App() {
             onStockSearchChange={handleStockSearchChange}
             stockHasMore={visibleInventory.length < filteredInventory.length}
             stockSummary={stockSummary}
+            stockAnalytics={stockAnalytics}
             stockSearch={stockSearch}
             visibleInventory={visibleInventory}
+          />
+        ) : activeView === 'analytics' ? (
+          <AnalyticsView
+            analyticsMetrics={analyticsMetrics}
+            isLoggedIn={isLoggedIn}
           />
         ) : activeView === 'reports' ? (
           <ReportsView

@@ -533,6 +533,26 @@ button:disabled {
   gap: 10px;
 }
 
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.analytics-card {
+  min-height: 52px;
+  padding: 10px;
+}
+
+.analytics-card span {
+  font-size: 11px;
+}
+
+.analytics-card strong {
+  font-size: 16px;
+}
+
 .summary-card {
   min-height: 72px;
   display: flex;
@@ -1017,7 +1037,8 @@ tr.row-highlight td {
     grid-template-columns: 1fr;
   }
 
-  .summary-grid {
+  .summary-grid,
+  .analytics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1087,6 +1108,7 @@ tr.row-highlight td {
   }
 
   .summary-grid,
+  .analytics-grid,
   .detail-grid {
     grid-template-columns: 1fr;
   }
