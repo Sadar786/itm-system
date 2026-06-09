@@ -113,11 +113,7 @@ const createShop = async (req, res) => {
 // ==============================
 const getAllShops = async (req, res) => {
     try {
-        const query = req.user.role === "shop_keeper"
-            ? { shopkeeperId: req.user.id }
-            : {};
-
-        const shops = await Shop.find(query)
+        const shops = await Shop.find({})
             .select("-__v")
             .sort({ createdAt: -1 });
 
@@ -311,10 +307,56 @@ const deleteShop = async (req, res) => {
     }
 };
 
+
+// ==============================
+// GET TRANSFER DESTINATION SHOPS
+// ==============================
+const getTransferDestinationShops = async (req, res) => {
+  try {
+    const assignedShopId = req.user.shopId?.toString();
+
+    const query = {
+      $or: [
+        { isActive: true },
+        { isActive: { $exists: false } },
+      ],
+    };
+
+    if (req.user.role !== "admin") {
+      if (!assignedShopId) {
+        return res.status(403).json({
+          success: false,
+          message: "No shop assigned to this user",
+        });
+      }
+
+      query._id = { $ne: assignedShopId };
+    }
+
+    const shops = await Shop.find(query)
+      .select("_id name code location phone isActive")
+      .sort({ code: 1, name: 1 });
+
+    return res.status(200).json({
+      success: true,
+      count: shops.length,
+      data: shops,
+    });
+  } catch (error) {
+    console.error("Get Transfer Destination Shops Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching destination shops",
+    });
+  }
+};
+
 export {
     createShop,
     getAllShops,
     getSingleShop,
     updateShop,
     deleteShop,
+    getTransferDestinationShops
 };

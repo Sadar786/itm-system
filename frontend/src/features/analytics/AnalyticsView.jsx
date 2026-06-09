@@ -1,4 +1,4 @@
-export function AnalyticsView({ analyticsMetrics, isLoggedIn }) {
+export function AnalyticsView({ analyticsMetrics }) {
   return (
     <div className="analytics-page">
       <div className="analytics-grid">

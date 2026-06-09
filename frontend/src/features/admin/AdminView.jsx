@@ -1,14 +1,11 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 
 export function AdminView({
-  busyKey,
-  categories,
   isLoggedIn,
   isShopkeeper,
   user,
   products,
   shops,
-  units,
   onCreateProduct,
   onCreateShop,
   onProductDelete,

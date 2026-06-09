@@ -1,4 +1,3 @@
-import { Store } from "lucide-react";
 import { BranchPanel } from "./BranchPanel";
 import { ReportDatePanel } from "./ReportDatePanel";
 import { SessionPanel } from "./SessionPanel";

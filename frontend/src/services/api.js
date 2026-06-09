@@ -72,6 +72,9 @@ export const getProducts = (token) => apiJson('/products?limit=500', token)
 
 export const getShops = (token) => apiJson('/shops/all', token)
 
+export const getTransferDestinationShops = (token) =>
+  apiJson('/shops/transfer-destinations', token)
+
 export const getCategories = (token) => apiJson('/meta/categories', token)
 export const getUnits = (token) => apiJson('/meta/units', token)
 
