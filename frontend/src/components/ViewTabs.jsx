@@ -28,6 +28,7 @@ export function ViewTabs({ activeView, onChange, isAdmin }) {
         Transfers
       </button>
       {isAdmin ? (
+        console.log("isAdmin from ViewTabs:", isAdmin), // Log the value of isAdmin for debugging
         <button
           type="button"
           className={activeView === 'admin' ? 'active' : ''}

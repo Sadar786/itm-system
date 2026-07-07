@@ -7,7 +7,6 @@ export function ReportsView({
   isAdmin,
   onDownload,
 }) {
-  console.log("isAdmin:", isAdmin); // Log the value of isAdmin for debugging
   return (
     <div className="report-groups">
       {reportGroups.map((group) => (

@@ -961,7 +961,7 @@ function App() {
         <WorkspaceHeader activeView={activeView} isLoggedIn={isLoggedIn} />
         <ViewTabs
           activeView={activeView}
-          isAdmin={canManage}
+          isAdmin={isAdmin}
           onChange={setActiveView}
         />
         <Notice error={error} message={message} />
