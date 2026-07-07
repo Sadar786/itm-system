@@ -32,20 +32,16 @@ const getScopedShopId = (req) => {
   return req.user.shopId;
 };
 
-const getOptionalScopedShopId = (req) => {
+const getAllShopReportShopId = (req) => {
   if (req.user.role === "admin") {
     return req.query.shopId;
   }
 
-  if (!req.user.shopId) {
-    throw new AppError("No shop assigned to this user", 403);
-  }
-
-  if (req.query.shopId && req.query.shopId !== req.user.shopId.toString()) {
+  if (req.query.shopId && req.query.shopId !== req.user.shopId?.toString()) {
     throw new AppError("You can only access your assigned shop", 403);
   }
 
-  return req.user.shopId;
+  return undefined;
 };
 
 const sendExcel = (res, { filename, buffer }) => {
@@ -204,7 +200,7 @@ const exportAllShopMonthlyTransferStock = async (req, res, direction) => {
     const report = await getAllShopMonthlyTransferStockReport({
       ...req.query,
       direction,
-      shopId: getOptionalScopedShopId(req),
+      shopId: getAllShopReportShopId(req),
     });
 
     const buffer = await createMonthlyTransferStockWorkbookBuffer(report);

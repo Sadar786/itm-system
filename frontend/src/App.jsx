@@ -9,7 +9,6 @@ import { StockView } from "./features/stock/StockView";
 import { TransferStockModal } from "./features/stock/TransferStockModal";
 import { TransferDetailModal } from "./features/transfers/TransferDetailModal";
 import { TransfersView } from "./features/transfers/TransfersView";
-import { AnalyticsView } from "./features/analytics/AnalyticsView";
 import { AdminView } from "./features/admin/AdminView";
 import { AdminShopModal } from "./features/admin/AdminShopModal";
 import { AdminProductModal } from "./features/admin/AdminProductModal";
@@ -23,7 +22,7 @@ import {
   downloadReport,
   forgotPassword,
   getCategories,
-  getInventory,
+  getMovements,
   getProducts,
   getShops,
   getTransferDestinationShops,
@@ -61,6 +60,23 @@ const getId = (value) => {
   if (typeof value === "string") return value;
   if (value._id) return value._id.toString();
   return value.toString?.() || "";
+};
+
+const getMovementDateRange = (dateFilters) => {
+  if (dateFilters.dateMode === "month" && dateFilters.month) {
+    const [year, month] = dateFilters.month.split("-").map(Number);
+    const startDate = `${dateFilters.month}-01`;
+    const endDate = new Date(Date.UTC(year, month, 0))
+      .toISOString()
+      .slice(0, 10);
+
+    return { startDate, endDate };
+  }
+
+  return {
+    startDate: dateFilters.startDate,
+    endDate: dateFilters.endDate,
+  };
 };
 
 function App() {
@@ -112,16 +128,14 @@ function App() {
   });
   const [selectedShopId, setSelectedShopId] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
-  const [inventory, setInventory] = useState([]);
   const [transfers, setTransfers] = useState([]);
+  const [movements, setMovements] = useState([]);
   const [transferPagination, setTransferPagination] = useState({
     total: 0,
     page: 1,
     pages: 1,
     limit: PAGE_SIZE,
   });
-  const [stockSearch, setStockSearch] = useState("");
-  const [stockVisibleCount, setStockVisibleCount] = useState(PAGE_SIZE);
   const [addProductSearch, setAddProductSearch] = useState("");
   const [transferProductSearch, setTransferProductSearch] = useState("");
   const [addStock, setAddStock] = useState(emptyAddStock);
@@ -131,7 +145,6 @@ function App() {
   }));
   const [activeModal, setActiveModal] = useState(null);
   const [selectedTransferDetail, setSelectedTransferDetail] = useState(null);
-  const [highlightedRowKeys, setHighlightedRowKeys] = useState([]);
 
   const isLoggedIn = Boolean(token);
   const isAdmin = user?.role === "admin";
@@ -173,28 +186,9 @@ function App() {
   }, [transferDestinationShops, transfer.fromShopId, assignedShopId]);
 
   const transferableProducts = useMemo(() => {
-    const sourceShopId = transfer.fromShopId.trim();
-    if (!sourceShopId) return [];
-
-    const productById = new Map(
-      products.map((product) => [product._id, product]),
-    );
-    const productIds = new Set();
-
-    inventory.forEach((item) => {
-      const rowShopId = item.shopId?._id || item.shopId;
-      const rowProductId = item.productId?._id || item.productId;
-      const quantity = Number(item.quantity || 0);
-
-      if (rowShopId === sourceShopId && rowProductId && quantity > 0) {
-        productIds.add(rowProductId);
-      }
-    });
-
-    return [...productIds]
-      .map((productId) => productById.get(productId))
-      .filter(Boolean);
-  }, [inventory, products, transfer.fromShopId]);
+    if (!transfer.fromShopId.trim()) return [];
+    return products;
+  }, [products, transfer.fromShopId]);
 
   const filteredAddProducts = useMemo(() => {
     const needle = addProductSearch.trim().toLowerCase();
@@ -218,25 +212,7 @@ function App() {
     );
   }, [transferProductSearch, transferableProducts]);
 
-  const transferAvailableQuantity = useMemo(() => {
-    const sourceShopId = transfer.fromShopId.trim();
-    if (!sourceShopId || !transfer.productId) return 0;
-
-    const row = inventory.find((item) => {
-      const rowShopId = item.shopId?._id || item.shopId;
-      const rowProductId = item.productId?._id || item.productId;
-      return rowShopId === sourceShopId && rowProductId === transfer.productId;
-    });
-
-    return Number(row?.quantity || 0);
-  }, [inventory, transfer.fromShopId, transfer.productId]);
-
   const transferQuantity = Number(transfer.quantity || 0);
-  const transferRemainingQuantity = Math.max(
-    transferAvailableQuantity -
-      (Number.isFinite(transferQuantity) ? transferQuantity : 0),
-    0,
-  );
   const isTransferSubmitDisabled =
     !transfer.fromShopId ||
     !transfer.toShopId ||
@@ -244,193 +220,7 @@ function App() {
     !transfer.unitId ||
     !Number.isFinite(transferQuantity) ||
     transferQuantity <= 0 ||
-    transfer.fromShopId === transfer.toShopId ||
-    transferQuantity > transferAvailableQuantity;
-
-  const filteredInventory = useMemo(() => {
-    const needle = stockSearch.trim().toLowerCase();
-    if (!needle) return inventory;
-
-    return inventory.filter((item) => {
-      const product = `${item.productId?.itemCode || ""} ${item.productId?.description || ""}`;
-      const shop = `${item.shopId?.code || ""} ${item.shopId?.name || ""}`;
-      return `${product} ${shop}`.toLowerCase().includes(needle);
-    });
-  }, [inventory, stockSearch]);
-
-  const visibleInventory = useMemo(
-    () => filteredInventory.slice(0, stockVisibleCount),
-    [filteredInventory, stockVisibleCount],
-  );
-
-  const stockSummary = useMemo(() => {
-    const productIds = new Set();
-    let lowStockCount = 0;
-    let totalQuantity = 0;
-    let lastMovementAt = null;
-
-    filteredInventory.forEach((item) => {
-      const productId = item.productId?._id || item.productId;
-      const quantity = Number(item.quantity || 0);
-      const minimumStock = Number(item.productId?.minimumStock || 0);
-      const reorderLevel = Number(item.productId?.reorderLevel || 0);
-
-      if (productId) productIds.add(productId);
-      totalQuantity += quantity;
-
-      if (
-        (minimumStock > 0 && quantity <= minimumStock) ||
-        (reorderLevel > 0 && quantity <= reorderLevel)
-      ) {
-        lowStockCount += 1;
-      }
-
-      if (item.lastMovementAt) {
-        const movementDate = new Date(item.lastMovementAt);
-        if (!lastMovementAt || movementDate > lastMovementAt) {
-          lastMovementAt = movementDate;
-        }
-      }
-    });
-
-    return {
-      totalProducts: productIds.size,
-      lowStockCount,
-      totalQuantity,
-      lastMovementDate: lastMovementAt
-        ? lastMovementAt.toISOString().slice(0, 10)
-        : "",
-    };
-  }, [filteredInventory]);
-
-  const stockAnalytics = useMemo(() => {
-    const branchIds = new Set();
-    let highStockCount = 0;
-    let maxQuantity = 0;
-
-    filteredInventory.forEach((item) => {
-      const quantity = Number(item.quantity || 0);
-      const shopKey = item.shopId?._id || item.shopId;
-      const reorderLevel = Number(item.productId?.reorderLevel || 0);
-
-      if (shopKey) branchIds.add(shopKey);
-      if (quantity > maxQuantity) maxQuantity = quantity;
-      if (reorderLevel > 0 && quantity > reorderLevel * 2) {
-        highStockCount += 1;
-      }
-    });
-
-    return {
-      branchCount: branchIds.size,
-      averageQuantity: stockSummary.totalProducts
-        ? stockSummary.totalQuantity / stockSummary.totalProducts
-        : 0,
-      highStockCount,
-      maxQuantity,
-    };
-  }, [
-    filteredInventory,
-    stockSummary.totalProducts,
-    stockSummary.totalQuantity,
-  ]);
-
-  const analyticsMetrics = useMemo(() => {
-    const branchTotals = new Map();
-    const productTotals = new Map();
-    const uniqueBranches = new Set();
-    const uniqueProducts = new Set();
-    let totalQuantity = 0;
-    let lowStockRows = 0;
-    let highStockRows = 0;
-    let maxQuantityRow = 0;
-    let maxProduct = null;
-
-    inventory.forEach((item) => {
-      const quantity = Number(item.quantity || 0);
-      const shopKey = item.shopId?._id || item.shopId;
-      const productKey = item.productId?._id || item.productId;
-      const reorderLevel = Number(item.productId?.reorderLevel || 0);
-
-      if (shopKey) {
-        uniqueBranches.add(shopKey);
-        branchTotals.set(shopKey, (branchTotals.get(shopKey) || 0) + quantity);
-      }
-
-      if (productKey) {
-        uniqueProducts.add(productKey);
-        productTotals.set(
-          productKey,
-          (productTotals.get(productKey) || 0) + quantity,
-        );
-      }
-
-      totalQuantity += quantity;
-
-      if (reorderLevel > 0 && quantity <= reorderLevel) {
-        lowStockRows += 1;
-      }
-
-      if (reorderLevel > 0 && quantity >= reorderLevel * 3) {
-        highStockRows += 1;
-      }
-
-      if (quantity > maxQuantityRow) {
-        maxQuantityRow = quantity;
-        maxProduct = item.productId;
-      }
-    });
-
-    let topBranch = { label: "-", quantity: 0 };
-    branchTotals.forEach((quantity, branchId) => {
-      if (quantity > topBranch.quantity) {
-        const shop = shops.find(
-          (item) => item._id === branchId || item.code === branchId,
-        );
-        topBranch = {
-          label: shop?.name || shop?.code || branchId,
-          quantity,
-        };
-      }
-    });
-
-    let topProduct = { label: "-", quantity: 0 };
-    productTotals.forEach((quantity, productId) => {
-      if (quantity > topProduct.quantity) {
-        const product = products.find(
-          (item) => item._id === productId || item.itemCode === productId,
-        );
-        topProduct = {
-          label: product?.description || product?.itemCode || productId,
-          quantity,
-        };
-      }
-    });
-
-    const totalTransferredQuantity = transfers.reduce((sum, transfer) => {
-      const transferQuantity = transfer.items?.reduce(
-        (itemSum, item) => itemSum + Number(item.quantity || 0),
-        0,
-      );
-      return sum + (transferQuantity || 0);
-    }, 0);
-
-    return {
-      branchCount: uniqueBranches.size,
-      productCount: uniqueProducts.size,
-      inventoryRows: inventory.length,
-      totalQuantity,
-      lowStockRows,
-      highStockRows,
-      maxQuantity: maxQuantityRow,
-      maxProductName: maxProduct?.description || maxProduct?.itemCode || "-",
-      topBranchLabel: topBranch.label,
-      topBranchQuantity: topBranch.quantity,
-      topProductLabel: topProduct.label,
-      topProductQuantity: topProduct.quantity,
-      transferCount: transfers.length,
-      totalTransferredQuantity,
-    };
-  }, [inventory, transfers, products, shops]);
+    transfer.fromShopId === transfer.toShopId;
 
   const loadProducts = async (authToken = token) => {
     const data = await getProducts(authToken);
@@ -457,15 +247,6 @@ function App() {
     setUnits(data.data || []);
   };
 
-  const loadInventory = async (authToken = token, targetShopId = shopId) => {
-    const data = await getInventory({
-      token: authToken,
-      shopId: targetShopId,
-    });
-    setInventory(data.data || []);
-    setStockVisibleCount(PAGE_SIZE);
-  };
-
   const loadTransfers = async ({
     authToken = token,
     page = 1,
@@ -488,6 +269,20 @@ function App() {
     });
   };
 
+  const loadMovements = async ({
+    authToken = token,
+    targetShopId = shopId,
+  } = {}) => {
+    const dateRange = getMovementDateRange(dateFilters);
+    const data = await getMovements({
+      token: authToken,
+      shopId: targetShopId,
+      ...dateRange,
+    });
+
+    setMovements(data.data || []);
+  };
+
   useEffect(() => {
     if (!token) return;
 
@@ -502,8 +297,8 @@ function App() {
           loadTransferDestinationShops(token),
           loadCategories(token),
           loadUnits(token),
-          loadInventory(token, shopId),
           loadTransfers({ authToken: token }),
+          loadMovements({ authToken: token }),
         ]);
       } catch (loadError) {
         setError(loadError.message);
@@ -515,6 +310,15 @@ function App() {
     loadInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    loadMovements().catch((loadError) => {
+      setError(loadError.message);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFilters, shopId, token]);
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -617,8 +421,8 @@ function App() {
     setUser(null);
     setProducts([]);
     setShops([]);
-    setInventory([]);
     setTransfers([]);
+    setMovements([]);
     setTransferPagination({
       total: 0,
       page: 1,
@@ -641,11 +445,6 @@ function App() {
     }));
   };
 
-  const handleStockSearchChange = (value) => {
-    setStockSearch(value);
-    setStockVisibleCount(PAGE_SIZE);
-  };
-
   const handleRefreshInventory = async () => {
     setBusyKey("inventory-refresh");
     setError("");
@@ -658,10 +457,10 @@ function App() {
         loadTransferDestinationShops(),
         loadCategories(),
         loadUnits(),
-        loadInventory(),
         loadTransfers(),
+        loadMovements(),
       ]);
-      setMessage("Current stock refreshed.");
+      setMessage("Stock actions refreshed.");
     } catch (refreshError) {
       setError(refreshError.message);
     } finally {
@@ -744,7 +543,7 @@ function App() {
     try {
       await deleteShop({ token, shopId });
       setMessage("Branch deleted successfully.");
-      await Promise.all([loadShops(), loadInventory(), loadTransfers()]);
+      await Promise.all([loadShops(), loadTransferDestinationShops(), loadTransfers()]);
       resetShopForm();
     } catch (deleteError) {
       setError(deleteError.message);
@@ -762,7 +561,7 @@ function App() {
     try {
       await deleteProduct({ token, productId });
       setMessage("Product deleted successfully.");
-      await Promise.all([loadProducts(), loadInventory()]);
+      await loadProducts();
       resetProductForm();
     } catch (deleteError) {
       setError(deleteError.message);
@@ -812,7 +611,6 @@ function App() {
             ...current,
             fromShopId: result.user.shopId,
           }));
-          await loadInventory(token, result.user.shopId);
         }
       }
 
@@ -866,7 +664,7 @@ function App() {
         setMessage("Product created successfully.");
       }
 
-      await Promise.all([loadProducts(), loadInventory()]);
+      await loadProducts();
       setActiveModal(null);
       resetProductForm();
     } catch (productError) {
@@ -992,13 +790,10 @@ function App() {
 
       const data = await addInventoryStock({ token, body });
 
-      setMessage(data.message || "Stock added successfully.");
+      setMessage(data.message || "Incoming stock recorded successfully.");
       setAddStock(emptyAddStock);
       setActiveModal(null);
-      setHighlightedRowKeys([
-        `${data.data?.shopId?._id || shopId}|${addStock.productId}`,
-      ]);
-      await loadInventory();
+      await loadMovements();
     } catch (stockError) {
       setError(stockError.message);
     } finally {
@@ -1031,11 +826,6 @@ function App() {
       return;
     }
 
-    if (quantity > transferAvailableQuantity) {
-      setError(`Available stock is ${transferAvailableQuantity.toFixed(3)}.`);
-      return;
-    }
-
     const productName = formatProductName(selectedTransferProduct);
     const confirmed = window.confirm(
       `Transfer ${quantity} of ${productName} to the selected branch?`,
@@ -1062,35 +852,17 @@ function App() {
       });
 
       setMessage(data.message || "Transfer created successfully.");
-      setHighlightedRowKeys([
-        `${transfer.fromShopId}|${transfer.productId}`,
-        `${transfer.toShopId}|${transfer.productId}`,
-      ]);
       setTransfer({
         ...emptyTransfer,
         fromShopId: assignedShopId || "",
       });
       setActiveModal(null);
-      await Promise.all([loadInventory(), loadTransfers()]);
+      await Promise.all([loadTransfers(), loadMovements()]);
     } catch (transferError) {
       setError(transferError.message);
     } finally {
       setBusyKey("");
     }
-  };
-
-  useEffect(() => {
-    if (!highlightedRowKeys.length) return undefined;
-
-    const timeout = window.setTimeout(() => {
-      setHighlightedRowKeys([]);
-    }, 2800);
-
-    return () => window.clearTimeout(timeout);
-  }, [highlightedRowKeys]);
-
-  const handleLoadMoreStock = () => {
-    setStockVisibleCount((current) => current + PAGE_SIZE);
   };
 
   const handleLoadMoreTransfers = async () => {
@@ -1196,28 +968,16 @@ function App() {
 
         {activeView === "stock" ? (
           <StockView
-            filteredInventory={filteredInventory}
-            highlightedRowKeys={highlightedRowKeys}
             isLoggedIn={isLoggedIn}
-            onLoadMoreStock={handleLoadMoreStock}
+            movements={movements}
             onOpenAddStock={openAddStockModal}
             onOpenTransferStock={openTransferModal}
-            onStockSearchChange={handleStockSearchChange}
-            stockHasMore={visibleInventory.length < filteredInventory.length}
-            stockSummary={stockSummary}
-            stockAnalytics={stockAnalytics}
-            stockSearch={stockSearch}
-            visibleInventory={visibleInventory}
-          />
-        ) : activeView === "analytics" ? (
-          <AnalyticsView
-            analyticsMetrics={analyticsMetrics}
-            isLoggedIn={isLoggedIn}
           />
         ) : activeView === "reports" ? (
           <ReportsView
             busyKey={busyKey}
             isLoggedIn={isLoggedIn}
+            isAdmin={isAdmin}
             onDownload={handleDownload}
           />
         ) : activeView === "admin" ? (
@@ -1268,7 +1028,6 @@ function App() {
         />
 
         <TransferStockModal
-          availableQuantity={transferAvailableQuantity}
           busyKey={busyKey}
           destinationShops={destinationShops}
           isOpen={activeModal === "transfer-stock"}
@@ -1279,7 +1038,6 @@ function App() {
           onSubmit={handleTransferStock}
           onTransferChange={handleTransferChange}
           productSearch={transferProductSearch}
-          remainingQuantity={transferRemainingQuantity}
           selectedProduct={selectedTransferProduct}
           sourceShops={sourceShops}
           transferableProducts={filteredTransferProducts}

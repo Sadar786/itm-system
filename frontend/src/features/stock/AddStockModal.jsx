@@ -16,7 +16,7 @@ export function AddStockModal({
   selectedProduct,
 }) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add Stock">
+    <Modal isOpen={isOpen} onClose={onClose} title="Incoming Stock">
       <form className="modal-form" onSubmit={onSubmit}>
         <label>
           Product Search
@@ -78,7 +78,7 @@ export function AddStockModal({
           <textarea
             value={addStock.remarks}
             onChange={(event) => onAddStockChange('remarks', event.target.value)}
-            placeholder="Supplier invoice, opening stock, correction..."
+            placeholder="Supplier invoice, delivery note, correction..."
           />
         </label>
 
@@ -92,7 +92,7 @@ export function AddStockModal({
             ) : (
               <PackagePlus size={16} />
             )}
-            Add Stock
+            Record Incoming
           </button>
         </div>
       </form>

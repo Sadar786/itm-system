@@ -1,64 +1,35 @@
-import { PackagePlus, Search, Send } from 'lucide-react'
+import { PackagePlus, Send } from 'lucide-react'
 
 export function StockView({
-  filteredInventory,
-  highlightedRowKeys,
   isLoggedIn,
-  onLoadMoreStock,
+  movements,
   onOpenAddStock,
   onOpenTransferStock,
-  onStockSearchChange,
-  stockHasMore,
-  stockSummary,
-  stockAnalytics,
-  stockSearch,
-  visibleInventory,
 }) {
+  const incomingCount = movements.filter(
+    (movement) => movement.movementType === 'IN',
+  ).length
+  const transferCount = movements.filter((movement) =>
+    movement.movementType?.startsWith('TRANSFER'),
+  ).length
+  const recentMovements = movements.slice(0, 20)
+
   return (
     <div className="stock-page">
       <div className="summary-grid">
+        
         <article className="summary-card">
-          <span>Products In View</span>
-          <strong>{stockSummary.totalProducts}</strong>
-        </article>
-        <article className="summary-card warning">
-          <span>Low Stock</span>
-          <strong>{stockSummary.lowStockCount}</strong>
+          <span>Transfers</span>
+          <strong>{transferCount}</strong>
         </article>
         <article className="summary-card">
-          <span>Total Quantity</span>
-          <strong>{stockSummary.totalQuantity.toFixed(3)}</strong>
-        </article>
-        <article className="summary-card">
-          <span>Last Movement</span>
-          <strong>{stockSummary.lastMovementDate || '-'}</strong>
-        </article>
-      </div>
-
-      <div className="analytics-grid">
-        <article className="summary-card analytics-card">
-          <span>Branches In View</span>
-          <strong>{stockAnalytics.branchCount}</strong>
-        </article>
-        <article className="summary-card analytics-card">
-          <span>High Stock Rows</span>
-          <strong>{stockAnalytics.highStockCount}</strong>
-        </article>
-        <article className="summary-card analytics-card">
-          <span>Average Qty / Product</span>
-          <strong>{stockAnalytics.averageQuantity.toFixed(3)}</strong>
-        </article>
-        <article className="summary-card analytics-card">
-          <span>Max Quantity</span>
-          <strong>{stockAnalytics.maxQuantity.toFixed(3)}</strong>
+          <span>Movement Records</span>
+          <strong>{movements.length}</strong>
         </article>
       </div>
 
       <div className="stock-actions">
-        <button type="button" onClick={onOpenAddStock} disabled={!isLoggedIn}>
-          <PackagePlus size={16} />
-          Add Stock
-        </button>
+        
         <button
           type="button"
           className="secondary-action"
@@ -73,90 +44,54 @@ export function StockView({
       <section className="stock-table-panel">
         <div className="section-toolbar">
           <div>
-            <h3>Inventory</h3>
-            <span>
-              Showing {visibleInventory.length} of {filteredInventory.length} item rows
-            </span>
+            <h3>Daily Stock Actions</h3>
+            <span>Showing incoming and transfer records for the selected report dates.</span>
           </div>
-          <label className="search-field">
-            <Search size={16} />
-            <input
-              value={stockSearch}
-              onChange={(event) => onStockSearchChange(event.target.value)}
-              placeholder="Search stock"
-            />
-          </label>
         </div>
-
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
+                <th>Date</th>
+                <th>Type</th>
                 <th>Item</th>
                 <th>Branch</th>
-                <th>Quantity</th>
+                <th>Related Branch</th>
+                <th>Qty</th>
                 <th>Unit</th>
-                <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {visibleInventory.map((item) => {
-                const shopKey = item.shopId?._id || item.shopId
-                const productKey = item.productId?._id || item.productId
-                const rowKey = `${shopKey}|${productKey}`
-                const quantity = Number(item.quantity || 0)
-                const minimumStock = Number(item.productId?.minimumStock || 0)
-                const reorderLevel = Number(item.productId?.reorderLevel || 0)
-                const isLow = minimumStock > 0 && quantity <= minimumStock
-                const isReorder = reorderLevel > 0 && quantity <= reorderLevel
-
-                return (
-                <tr
-                  key={item._id}
-                  className={[
-                    highlightedRowKeys.includes(rowKey) ? 'row-highlight' : '',
-                    isLow || isReorder ? 'row-warning' : '',
-                  ].filter(Boolean).join(' ')}
-                >
+              {recentMovements.map((movement) => (
+                <tr key={movement.movementNo}>
+                  <td>{new Date(movement.movementDate).toISOString().slice(0, 10)}</td>
+                  <td>{movement.movementType}</td>
                   <td>
-                    <strong>{item.productId?.itemCode || '-'}</strong>
-                    <span>{item.productId?.description || ''}</span>
+                    <strong>{movement.itemCode || '-'}</strong>
+                    <span>{movement.product || ''}</span>
                   </td>
                   <td>
-                    <strong>{item.shopId?.code || '-'}</strong>
-                    <span>{item.shopId?.name || ''}</span>
+                    <strong>{movement.shopCode || '-'}</strong>
+                    <span>{movement.shopName || ''}</span>
                   </td>
-                  <td>{quantity.toFixed(3)}</td>
-                  <td>{item.unitId?.shortName || item.unitId?.name || '-'}</td>
                   <td>
-                    {isLow ? (
-                      <span className="stock-badge danger">Low</span>
-                    ) : isReorder ? (
-                      <span className="stock-badge warning">Reorder</span>
-                    ) : (
-                      <span className="stock-badge">Ok</span>
-                    )}
+                    <strong>{movement.relatedShopCode || '-'}</strong>
+                    <span>{movement.relatedShopName || ''}</span>
                   </td>
+                  <td>{Number(movement.quantity || 0).toFixed(3)}</td>
+                  <td>{movement.unit || '-'}</td>
                 </tr>
-                )
-              })}
-              {!filteredInventory.length && (
+              ))}
+              {!recentMovements.length && (
                 <tr>
-                  <td colSpan="5" className="empty-cell">
-                    No stock rows loaded.
+                  <td colSpan="7" className="empty-cell">
+                    No movement records found for the selected dates.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-        {stockHasMore && (
-          <div className="table-footer">
-            <button type="button" className="secondary-action" onClick={onLoadMoreStock}>
-              Load more stock
-            </button>
-          </div>
-        )}
       </section>
     </div>
   )

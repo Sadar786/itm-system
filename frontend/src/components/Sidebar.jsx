@@ -40,7 +40,7 @@ export function Sidebar({
         </div>
         <div>
           <h1>Inventory Control</h1>
-          <p>Branch stock, transfers, and reports</p>
+          <p>Incoming stock, transfers, and reports</p>
         </div>
       </div>
 

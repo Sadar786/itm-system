@@ -45,7 +45,7 @@ export function BranchPanel({
           size={16}
           className={busyKey === 'inventory-refresh' ? 'spin' : ''}
         />
-        Refresh Stock
+        Refresh Data
       </button>
     </section>
   )

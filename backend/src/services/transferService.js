@@ -5,11 +5,7 @@ import Transfer from "../models/Transfer.js";
 import TransferItem from "../models/TransferItem.js";
 import AppError from "../utils/AppError.js";
 
-import {
-  increaseStock,
-  decreaseStock,
-  createMovement,
-} from "./inventoryService.js";
+import { createMovement } from "./inventoryService.js";
 
 const generateTransferNo = () => {
   return `TRF-${Date.now()}-${randomBytes(4).toString("hex").toUpperCase()}`;
@@ -69,34 +65,6 @@ export const createTransferService = async ({
       }
 
       const numericQuantity = Number(quantity);
-      const fromInventory = await decreaseStock({
-        shopId: fromShopId,
-        productId,
-        quantity: numericQuantity,
-        session,
-      });
-
-      const toInventory = await increaseStock({
-        shopId: toShopId,
-        productId,
-        unitId,
-        quantity: numericQuantity,
-        session,
-      });
-
-      if (
-        fromInventory.shopId.toString() !== fromShopId.toString() ||
-        fromInventory.productId.toString() !== productId.toString()
-      ) {
-        throw new AppError("Transfer failed: sender stock was not reduced", 500);
-      }
-
-      if (
-        toInventory.shopId.toString() !== toShopId.toString() ||
-        toInventory.productId.toString() !== productId.toString()
-      ) {
-        throw new AppError("Transfer failed: receiver stock was not increased", 500);
-      }
 
       await TransferItem.create(
         [

@@ -81,69 +81,9 @@ export const addInventory = async (req, res) => {
     session.startTransaction();
 
     const movementDate = new Date();
-    const existingInventory = await Inventory.findOne({
-      shopId,
-      productId,
-    }).session(session);
+    const receiptId = new mongoose.Types.ObjectId();
 
-    if (existingInventory) {
-      if (existingInventory.unitId.toString() !== unitId) {
-        await session.abortTransaction();
-        return res.status(400).json({
-          success: false,
-          message:
-            "Unit mismatch. This product already exists in inventory with a different unit.",
-        });
-      }
-
-      existingInventory.quantity += qty;
-      existingInventory.lastMovementAt = movementDate;
-
-      const updatedInventory = await existingInventory.save({ session });
-
-      await createMovement({
-        shopId,
-        productId,
-        unitId,
-        quantity: qty,
-        quantityEffect: qty,
-        movementType: "IN",
-        referenceType: "StockReceipt",
-        referenceId: updatedInventory._id,
-        createdBy: req.user._id,
-        remarks,
-        movementDate,
-        session,
-      });
-
-      await session.commitTransaction();
-
-      const populated = await Inventory.findById(updatedInventory._id)
-        .populate("shopId", "name code")
-        .populate("productId", "itemCode description defaultUnitId minimumStock reorderLevel")
-        .populate("unitId", "name shortName");
-
-      return res.status(200).json({
-        success: true,
-        message: "Inventory quantity increased successfully",
-        data: populated,
-      });
-    }
-
-    const [inventory] = await Inventory.create(
-      [
-        {
-          shopId,
-          productId,
-          quantity: qty,
-          unitId,
-          lastMovementAt: movementDate,
-        },
-      ],
-      { session }
-    );
-
-    await createMovement({
+    const movement = await createMovement({
       shopId,
       productId,
       unitId,
@@ -151,7 +91,7 @@ export const addInventory = async (req, res) => {
       quantityEffect: qty,
       movementType: "IN",
       referenceType: "StockReceipt",
-      referenceId: inventory._id,
+      referenceId: receiptId,
       createdBy: req.user._id,
       remarks,
       movementDate,
@@ -160,14 +100,15 @@ export const addInventory = async (req, res) => {
 
     await session.commitTransaction();
 
-    const populated = await Inventory.findById(inventory._id)
-      .populate("shopId", "name code")
-      .populate("productId", "itemCode description defaultUnitId minimumStock reorderLevel")
-      .populate("unitId", "name shortName");
+    const populated = await movement.populate([
+      { path: "shopId", select: "name code" },
+      { path: "productId", select: "itemCode description defaultUnitId" },
+      { path: "unitId", select: "name shortName" },
+    ]);
 
     return res.status(201).json({
       success: true,
-      message: "Inventory created successfully",
+      message: "Incoming stock recorded successfully",
       data: populated,
     });
   } catch (error) {

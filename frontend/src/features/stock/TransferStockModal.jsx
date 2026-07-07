@@ -1,9 +1,8 @@
-import { RefreshCw, Send } from 'lucide-react'
-import { Modal } from '../../components/Modal'
-import { formatProductName } from '../../utils/format'
+import { RefreshCw, Send } from "lucide-react";
+import { Modal } from "../../components/Modal";
+import { formatProductName } from "../../utils/format";
 
 export function TransferStockModal({
-  availableQuantity,
   busyKey,
   destinationShops,
   isOpen,
@@ -14,7 +13,6 @@ export function TransferStockModal({
   onSubmit,
   onTransferChange,
   productSearch,
-  remainingQuantity,
   selectedProduct,
   sourceShops,
   transferableProducts,
@@ -28,7 +26,9 @@ export function TransferStockModal({
             From Shop
             <select
               value={transfer.fromShopId}
-              onChange={(event) => onTransferChange('fromShopId', event.target.value)}
+              onChange={(event) =>
+                onTransferChange("fromShopId", event.target.value)
+              }
               required
             >
               <option value="">Select source</option>
@@ -44,7 +44,9 @@ export function TransferStockModal({
             To Shop
             <select
               value={transfer.toShopId}
-              onChange={(event) => onTransferChange('toShopId', event.target.value)}
+              onChange={(event) =>
+                onTransferChange("toShopId", event.target.value)
+              }
               required
             >
               <option value="">Select destination</option>
@@ -73,7 +75,7 @@ export function TransferStockModal({
             onChange={(event) => onProductChange(event.target.value)}
             required
           >
-            <option value="">Select available product</option>
+            <option value="">Select product</option>
             {transferableProducts.map((product) => (
               <option key={product._id} value={product._id}>
                 {formatProductName(product)}
@@ -87,7 +89,9 @@ export function TransferStockModal({
             Unit ID
             <input
               value={transfer.unitId}
-              onChange={(event) => onTransferChange('unitId', event.target.value)}
+              onChange={(event) =>
+                onTransferChange("unitId", event.target.value)
+              }
               required
             />
           </label>
@@ -96,10 +100,12 @@ export function TransferStockModal({
             Quantity
             <input
               type="number"
-              min="0.000001"
-              step="0.001"
+              step="any"
+              min="1"
               value={transfer.quantity}
-              onChange={(event) => onTransferChange('quantity', event.target.value)}
+              onChange={(event) =>
+                onTransferChange("quantity", event.target.value)
+              }
               required
             />
           </label>
@@ -112,16 +118,8 @@ export function TransferStockModal({
               <strong>{formatProductName(selectedProduct)}</strong>
             </div>
             <div>
-              <span>Available</span>
-              <strong>{availableQuantity.toFixed(3)}</strong>
-            </div>
-            <div>
               <span>Transfer</span>
               <strong>{Number(transfer.quantity || 0).toFixed(3)}</strong>
-            </div>
-            <div>
-              <span>Remaining</span>
-              <strong>{remainingQuantity.toFixed(3)}</strong>
             </div>
           </div>
         )}
@@ -130,7 +128,9 @@ export function TransferStockModal({
           Remarks
           <textarea
             value={transfer.remarks}
-            onChange={(event) => onTransferChange('remarks', event.target.value)}
+            onChange={(event) =>
+              onTransferChange("remarks", event.target.value)
+            }
             placeholder="Transfer note..."
           />
         </label>
@@ -139,8 +139,11 @@ export function TransferStockModal({
           <button type="button" className="secondary-action" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" disabled={busyKey === 'transfer-stock' || isSubmitDisabled}>
-            {busyKey === 'transfer-stock' ? (
+          <button
+            type="submit"
+            disabled={busyKey === "transfer-stock" || isSubmitDisabled}
+          >
+            {busyKey === "transfer-stock" ? (
               <RefreshCw size={16} className="spin" />
             ) : (
               <Send size={16} />
@@ -150,5 +153,5 @@ export function TransferStockModal({
         </div>
       </form>
     </Modal>
-  )
+  );
 }

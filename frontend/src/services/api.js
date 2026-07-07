@@ -142,6 +142,21 @@ export const createTransfer = ({ token, body }) =>
 export const getTransfers = ({ token, page = 1, limit = 20 }) =>
   apiJson(`/transfers?page=${page}&limit=${limit}`, token)
 
+export const getMovements = ({ token, shopId, startDate, endDate }) => {
+  const params = new URLSearchParams()
+  if (shopId?.trim()) {
+    params.set('shopId', shopId.trim())
+  }
+  if (startDate) {
+    params.set('startDate', startDate)
+  }
+  if (endDate) {
+    params.set('endDate', endDate)
+  }
+
+  return apiJson(`/reports/movements${params.size ? `?${params}` : ''}`, token)
+}
+
 export const downloadReport = async ({ token, url, fallbackFilename }) => {
   const response = await fetch(url, {
     headers: authHeaders(token),

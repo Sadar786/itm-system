@@ -1,24 +1,5 @@
 export const reportGroups = [
-  {
-    title: 'Stock',
-    reports: [
-      {
-        key: 'stock-detail',
-        label: 'Current Stock Excel',
-        path: '/reports/current-stock/export',
-        filename: 'stock-detail-report.xlsx',
-        useShop: true,
-      },
-      {
-        key: 'movements',
-        label: 'Inventory Movements',
-        path: '/reports/movements/export',
-        filename: 'inventory-movement-report.xlsx',
-        useShop: true,
-        useDates: true,
-      },
-    ],
-  },
+  
   {
     title: 'Transfers',
     reports: [
@@ -27,16 +8,16 @@ export const reportGroups = [
         label: 'All Shop Transfer',
         path: '/reports/transfers/all-shops/export',
         filename: 'all-shop-transfer-report.xlsx',
-        useShop: true,
         useDateMode: true,
+        adminOnly: true,
       },
       {
         key: 'all-shop-coming',
         label: 'All Shop Coming',
         path: '/reports/transfers/all-shops/coming/export',
         filename: 'all-shop-coming-report.xlsx',
-        useShop: true,
         useDateMode: true,
+        adminOnly: true,
       },
       {
         key: 'to-shop',
