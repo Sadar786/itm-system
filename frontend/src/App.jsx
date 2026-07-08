@@ -12,10 +12,14 @@ import { TransfersView } from "./features/transfers/TransfersView";
 import { AdminView } from "./features/admin/AdminView";
 import { AdminShopModal } from "./features/admin/AdminShopModal";
 import { AdminProductModal } from "./features/admin/AdminProductModal";
+import { AdminUnitModal } from "./features/admin/AdminUnitModal";
 import {
   addInventoryStock,
   createProduct,
   createShop,
+  createUnit,
+  updateUnit,
+  deleteUnit,
   createTransfer,
   deleteProduct,
   deleteShop,
@@ -108,6 +112,17 @@ function App() {
   const [transferDestinationShops, setTransferDestinationShops] = useState([]);
   const [categories, setCategories] = useState([]);
   const [units, setUnits] = useState([]);
+  const [adminUnitForm, setAdminUnitForm] = useState({
+    name: "",
+    shortName: "",
+    baseUnitId: "",
+    factor: 1,
+    isDecimalAllowed: true,
+    isActive: true,
+  });
+
+  const [selectedUnitId, setSelectedUnitId] = useState("");
+
   const [adminShopForm, setAdminShopForm] = useState({
     name: "",
     code: "",
@@ -494,6 +509,19 @@ function App() {
     setSelectedProductId("");
   };
 
+  const resetUnitForm = () => {
+    setAdminUnitForm({
+      name: "",
+      shortName: "",
+      baseUnitId: "",
+      factor: 1,
+      isDecimalAllowed: true,
+      isActive: true,
+    });
+
+    setSelectedUnitId("");
+  };
+
   const handleShopFormChange = (field, value) => {
     setAdminShopForm((current) => ({
       ...current,
@@ -503,6 +531,13 @@ function App() {
 
   const handleProductFormChange = (field, value) => {
     setAdminProductForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const handleUnitFormChange = (field, value) => {
+    setAdminUnitForm((current) => ({
       ...current,
       [field]: value,
     }));
@@ -534,6 +569,19 @@ function App() {
     });
   };
 
+  const handleUnitEdit = (unit) => {
+    setSelectedUnitId(unit._id);
+
+    setAdminUnitForm({
+      name: unit.name || "",
+      shortName: unit.shortName || "",
+      baseUnitId: unit.baseUnitId?._id || unit.baseUnitId || "",
+      factor: unit.factor ?? 1,
+      isDecimalAllowed: Boolean(unit.isDecimalAllowed),
+      isActive: Boolean(unit.isActive),
+    });
+  };
+
   const handleDeleteShop = async (shopId) => {
     if (!window.confirm("Delete this branch?")) return;
     setBusyKey("admin-shop-delete");
@@ -543,7 +591,11 @@ function App() {
     try {
       await deleteShop({ token, shopId });
       setMessage("Branch deleted successfully.");
-      await Promise.all([loadShops(), loadTransferDestinationShops(), loadTransfers()]);
+      await Promise.all([
+        loadShops(),
+        loadTransferDestinationShops(),
+        loadTransfers(),
+      ]);
       resetShopForm();
     } catch (deleteError) {
       setError(deleteError.message);
@@ -565,6 +617,28 @@ function App() {
       resetProductForm();
     } catch (deleteError) {
       setError(deleteError.message);
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  const handleDeleteUnit = async (unitId) => {
+    if (!window.confirm("Delete this unit?")) return;
+
+    setBusyKey("admin-unit-delete");
+    setError("");
+    setMessage("");
+
+    try {
+      await deleteUnit({ token, unitId });
+
+      setMessage("Unit deleted successfully.");
+
+      await loadUnits();
+
+      resetUnitForm();
+    } catch (err) {
+      setError(err.message);
     } finally {
       setBusyKey("");
     }
@@ -674,6 +748,54 @@ function App() {
     }
   };
 
+  const handleUnitFormSubmit = async (event) => {
+    event.preventDefault();
+
+    setError("");
+    setMessage("");
+
+    if (!adminUnitForm.name.trim() || !adminUnitForm.shortName.trim()) {
+      setError("Name and Short Name are required.");
+      return;
+    }
+
+    setBusyKey(selectedUnitId ? "admin-unit-update" : "admin-unit-create");
+
+    try {
+      const body = {
+        ...adminUnitForm,
+        factor: Number(adminUnitForm.factor),
+      };
+
+      if (selectedUnitId) {
+        await updateUnit({
+          token,
+          unitId: selectedUnitId,
+          body,
+        });
+
+        setMessage("Unit updated successfully.");
+      } else {
+        await createUnit({
+          token,
+          body,
+        });
+
+        setMessage("Unit created successfully.");
+      }
+
+      await loadUnits();
+
+      resetUnitForm();
+
+      setActiveModal(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyKey("");
+    }
+  };
+
   const handleProductChange = (productId) => {
     const product = products.find((item) => item._id === productId);
     const unitId = product?.defaultUnitId?._id || product?.defaultUnitId || "";
@@ -745,6 +867,13 @@ function App() {
     setMessage("");
     resetProductForm();
     setActiveModal("product-create");
+  };
+
+  const openCreateUnitModal = () => {
+    setError("");
+    setMessage("");
+    resetUnitForm();
+    setActiveModal("unit-create");
   };
 
   const closeModal = () => {
@@ -990,6 +1119,12 @@ function App() {
             products={products}
             shops={shops}
             units={units}
+            onCreateUnit={openCreateUnitModal}
+            onUnitEdit={(unit) => {
+              handleUnitEdit(unit);
+              setActiveModal("unit-edit");
+            }}
+            onUnitDelete={handleDeleteUnit}
             onCreateShop={openCreateShopModal}
             onCreateProduct={openCreateProductModal}
             onProductDelete={handleDeleteProduct}
@@ -1042,6 +1177,7 @@ function App() {
           sourceShops={sourceShops}
           transferableProducts={filteredTransferProducts}
           transfer={transfer}
+          units={units}
         />
 
         <AdminShopModal
@@ -1070,6 +1206,19 @@ function App() {
           isEdit={activeModal === "product-edit"}
         />
 
+        <AdminUnitModal
+          busyKey={busyKey}
+          isOpen={activeModal === "unit-create" || activeModal === "unit-edit"}
+          isLoggedIn={isLoggedIn}
+          onClose={closeModal}
+          onChange={handleUnitFormChange}
+          onSubmit={handleUnitFormSubmit}
+          unitForm={adminUnitForm}
+          units={units}
+          isEdit={activeModal === "unit-edit"}
+        />
+
+        
         <TransferDetailModal
           isOpen={Boolean(selectedTransferDetail)}
           onClose={() => setSelectedTransferDetail(null)}

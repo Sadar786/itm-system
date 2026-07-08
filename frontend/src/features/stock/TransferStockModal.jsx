@@ -17,6 +17,7 @@ export function TransferStockModal({
   sourceShops,
   transferableProducts,
   transfer,
+  units,
 }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Transfer Stock">
@@ -86,14 +87,20 @@ export function TransferStockModal({
 
         <div className="form-grid">
           <label>
-            Unit ID
-            <input
+            Unit
+            <select
               value={transfer.unitId}
-              onChange={(event) =>
-                onTransferChange("unitId", event.target.value)
-              }
+              onChange={(e) => onTransferChange("unitId", e.target.value)}
               required
-            />
+            >
+              <option value="">Select Unit</option>
+
+              {units.map((unit) => (
+                <option key={unit._id} value={unit._id}>
+                  {unit.name} ({unit.shortName})
+                </option>
+              ))}
+            </select>
           </label>
 
           <label>

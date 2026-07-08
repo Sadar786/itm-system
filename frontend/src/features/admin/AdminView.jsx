@@ -6,13 +6,17 @@ export function AdminView({
   user,
   products,
   shops,
+  units,
   onCreateProduct,
   onCreateShop,
+  onCreateUnit,
   onProductDelete,
   onProductEdit,
   onShopDelete,
   onShopEdit,
-}) {
+  onUnitEdit,
+  onUnitDelete,
+})  {
   const canCreateShop = !isShopkeeper || !user?.shopId
   const showProductSection = !isShopkeeper
 
@@ -21,12 +25,13 @@ export function AdminView({
       <div className="admin-sections">
         <section className="panel admin-panel">
           <div className="panel-title">
-            <h2>Branch management</h2>
+            <h2 style={{ color: 'black' }}>Branch management</h2>
             {canCreateShop ? (
               <button type="button" className="primary-action" onClick={onCreateShop} disabled={!isLoggedIn}>
                 <Plus size={16} /> Create branch
               </button>
             ) : null}
+          
           </div>
 
           <div className="table-wrap admin-table-wrap">
@@ -85,7 +90,7 @@ export function AdminView({
         {showProductSection ? (
           <section className="panel admin-panel">
             <div className="panel-title">
-              <h2>Product management</h2>
+              <h2 style={{color: 'black'}}>Product management</h2>
               <button type="button" className="primary-action" onClick={onCreateProduct} disabled={!isLoggedIn}>
                 <Plus size={16} /> Create product
               </button>
@@ -143,6 +148,75 @@ export function AdminView({
             </div>
           </section>
         ) : null}
+
+
+        {!isShopkeeper && (
+  <section className="panel admin-panel">
+    <div className="panel-title">
+      <h2 style={{ color: "black" }}>Unit Management</h2>
+
+      <button
+        type="button"
+        className="primary-action"
+        onClick={onCreateUnit}
+        disabled={!isLoggedIn}
+      >
+        <Plus size={16} /> Create Unit
+      </button>
+    </div>
+
+    <div className="table-wrap admin-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Short Name</th>
+            <th>Base Unit</th>
+            <th>Factor</th>
+            <th />
+          </tr>
+        </thead>
+
+        <tbody>
+          {units.map((unit) => (
+            <tr key={unit._id}>
+              <td>{unit.name}</td>
+              <td>{unit.shortName}</td>
+              <td>{unit.baseUnitId?.shortName || "-"}</td>
+              <td>{unit.factor ?? "-"}</td>
+
+              <td className="table-actions-cell">
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => onUnitEdit(unit)}
+                >
+                  <Pencil size={16} />
+                </button>
+
+                <button
+                  type="button"
+                  className="icon-button secondary-action"
+                  onClick={() => onUnitDelete(unit._id)}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </td>
+            </tr>
+          ))}
+
+          {!units.length && (
+            <tr>
+              <td colSpan="5" className="empty-cell">
+                No units loaded.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </section>
+)}
       </div>
     </div>
   )

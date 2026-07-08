@@ -23,6 +23,14 @@ export const apiJson = async (path, token, options = {}) => {
   return data
 }
 
+const apiRequest = (path, { token, method = "GET", body } = {}) =>
+  apiJson(path, token, {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  })
+
+
 export const login = async ({ email, password }) => {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
@@ -76,7 +84,7 @@ export const getTransferDestinationShops = (token) =>
   apiJson('/shops/transfer-destinations', token)
 
 export const getCategories = (token) => apiJson('/meta/categories', token)
-export const getUnits = (token) => apiJson('/meta/units', token)
+export const getUnits = (token) => apiJson('/units', token)
 
 export const createShop = ({ token, body }) =>
   apiJson('/shops/create', token, {
@@ -177,5 +185,51 @@ export const downloadReport = async ({ token, url, fallbackFilename }) => {
   )
   downloadBlob(blob, filename)
 
+  
+
   return filename
+}
+
+/* =====================================================
+   UNIT APIs
+===================================================== */
+
+export const createUnit = ({ token, body }) =>
+  apiRequest("/units/create", {
+    method: "POST",
+    token,
+    body,
+  })
+
+export const updateUnit = ({ token, unitId, body }) =>
+  apiRequest(`/units/${unitId}`, {
+    method: "PUT",
+    token,
+    body,
+  })
+
+export const deleteUnit = ({ token, unitId }) =>
+  apiRequest(`/units/${unitId}`, {
+    method: "DELETE",
+    token,
+  })
+
+export const getUnit = ({ token, unitId }) =>
+  apiRequest(`/units/${unitId}`, {
+    token,
+  })
+
+export const getAllUnits = ({ token, page = 1, limit = 100, search = "" }) => {
+  const params = new URLSearchParams()
+
+  params.set("page", page)
+  params.set("limit", limit)
+
+  if (search.trim()) {
+    params.set("search", search.trim())
+  }
+
+  return apiRequest(`/units?${params.toString()}`, {
+    token,
+  })
 }

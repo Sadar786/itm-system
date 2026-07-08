@@ -11,6 +11,7 @@ import wasteItemRoutes from "./routes/wasteItemRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import devRoutes from "./routes/devRoutes.js";
 import metaRoutes from "./routes/metaRoutes.js";
+import unitRoutes from "./routes/unitRoutes.js";
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use("/api/waste_items", wasteItemRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/meta", metaRoutes);
 app.use("/api/dev", devRoutes);
+app.use("/api/units", unitRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "API running" });
