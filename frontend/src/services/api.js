@@ -209,7 +209,7 @@ export const updateUnit = ({ token, unitId, body }) =>
   })
 
 export const deleteUnit = ({ token, unitId }) =>
-  apiRequest(`/units/${unitId}`, {
+  apiRequest(`/units/delete/${unitId}`, {
     method: "DELETE",
     token,
   })

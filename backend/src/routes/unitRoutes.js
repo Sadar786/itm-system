@@ -1,4 +1,5 @@
 import express from "express";
+
 import {
   createUnit,
   getUnits,
@@ -6,34 +7,47 @@ import {
   updateUnit,
   deleteUnit,
 } from "../controllers/unitController.js";
+
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Protect all routes
+// Authentication required for all routes
 router.use(protect);
 
-// Admin only
-router.use(authorizeRoles("admin"));
+// =========================
+// READ ROUTES
+// Admin + Shop Keeper
+// =========================
+
+router.get("/", authorizeRoles("admin", "shop_keeper"), getUnits);
+
+router.get("/:id", authorizeRoles("admin", "shop_keeper"), getOneUnit);
 
 // =========================
-// CRUD Routes
+// ADMIN ONLY
 // =========================
 
 // Create Unit
-router.post("/create", createUnit);
-
-// Get All Units
-router.get("/", getUnits);
-
-// Get One Unit
-router.get("/:id", getOneUnit);
+router.post(
+  "/create",
+  authorizeRoles("admin"),
+  createUnit
+);
 
 // Update Unit
-router.put("/update/:id", updateUnit);
+router.put(
+  "/update/:id",
+  authorizeRoles("admin"),
+  updateUnit
+);
 
 // Delete Unit
-router.delete("/delete/:id", deleteUnit);
+router.delete(
+  "/delete/:id",
+  authorizeRoles("admin"),
+  deleteUnit
+);
 
 export default router;
