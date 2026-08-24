@@ -267,3 +267,68 @@ export const normalizeMovementRows = (rows) =>
     movementDate: formatDate(row.movementDate),
     referenceId: row.referenceId?.toString() || "",
   }));
+
+
+  export const createProductsWorkbookBuffer = async ({ products }) => {
+  const workbook = new ExcelJS.Workbook();
+
+  workbook.creator = "Inventory System";
+  workbook.created = new Date();
+
+  const worksheet = workbook.addWorksheet("Products");
+
+  const columns = [
+    { header: "Item Code", key: "itemCode", width: 16 },
+    { header: "Description", key: "description", width: 40 },
+    { header: "Category", key: "category", width: 22 },
+    { header: "Default Unit", key: "unit", width: 14 },
+    { header: "Barcode", key: "barcode", width: 22 },
+    { header: "Perishable", key: "isPerishable", width: 14 },
+    { header: "Minimum Stock", key: "minimumStock", width: 16 },
+    { header: "Reorder Level", key: "reorderLevel", width: 16 },
+    { header: "Notes", key: "notes", width: 40 },
+  ];
+
+  worksheet.columns = columns;
+
+  products.forEach((product) => {
+    worksheet.addRow({
+      itemCode: product.itemCode || "",
+      description: product.description || "",
+      category: product.categoryId?.name || "",
+      unit:
+        product.defaultUnitId?.shortName ||
+        product.defaultUnitId?.name ||
+        "",
+      barcode: product.barcode || "",
+      isPerishable: product.isPerishable ? "Yes" : "No",
+      minimumStock: product.minimumStock ?? 0,
+      reorderLevel: product.reorderLevel ?? 0,
+      notes: product.notes || "",
+    });
+  });
+
+  worksheet.views = [{ state: "frozen", ySplit: 1 }];
+
+  worksheet.getRow(1).font = {
+    bold: true,
+  };
+
+  worksheet.getRow(1).alignment = {
+    vertical: "middle",
+    horizontal: "center",
+  };
+
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+    });
+  });
+
+  return workbook.xlsx.writeBuffer();
+};

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { FileSpreadsheet, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileSpreadsheet, Pencil, Plus, Trash2, Download } from "lucide-react";
+import { downloadProductsExcel } from "../../services/api.js";
 
 export function AdminView({
   isLoggedIn,
@@ -79,6 +80,17 @@ export function AdminView({
         .some((value) => String(value).toLowerCase().includes(search)),
     );
   }, [products, productSearch]);
+
+  const handleDownloadProducts = async () => {
+    try {
+      await downloadProductsExcel({
+        token: localStorage.getItem("inventoryToken"),
+      });
+    } catch (error) {
+      console.error("Product download failed:", error);
+      alert(error.message || "Failed to download products.");
+    }
+  };
 
   return (
     <div className="admin-page">
@@ -288,6 +300,16 @@ export function AdminView({
               >
                 <FileSpreadsheet size={16} />
                 Import Excel
+              </button>
+
+              <button
+                type="button"
+                className="primary-action"
+                onClick={handleDownloadProducts}
+                disabled={!isLoggedIn}
+              >
+                <Download size={16} />
+                Download Excel
               </button>
 
               <button

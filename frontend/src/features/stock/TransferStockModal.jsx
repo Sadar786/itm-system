@@ -60,30 +60,40 @@ export function TransferStockModal({
           </label>
         </div>
 
-        <label>
-          Product Search
-          <input
-            value={productSearch}
-            onChange={(event) => onProductSearchChange(event.target.value)}
-            placeholder="Search available product"
-          />
-        </label>
+        <div className="product-autocomplete">
+          <label>
+            Product
+            <input
+              value={productSearch}
+              onChange={(event) => onProductSearchChange(event.target.value)}
+              placeholder="Search product by code or description"
+              autoComplete="off"
+              required={!transfer.productId}
+            />
+          </label>
 
-        <label>
-          Product
-          <select
-            value={transfer.productId}
-            onChange={(event) => onProductChange(event.target.value)}
-            required
-          >
-            <option value="">Select product</option>
-            {transferableProducts.map((product) => (
-              <option key={product._id} value={product._id}>
-                {formatProductName(product)}
-              </option>
-            ))}
-          </select>
-        </label>
+          {productSearch.trim() && transferableProducts.length > 0 && (
+            <div className="product-search-results">
+              {transferableProducts.map((product) => (
+                <button
+                  type="button"
+                  key={product._id}
+                  className="product-search-item"
+                  onClick={() => onProductChange(product._id)}
+                >
+                  <strong>{product.itemCode || "-"}</strong>
+                  <span>{product.description || ""}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {productSearch.trim() && !transferableProducts.length && (
+            <div className="product-search-empty">
+              No available products found.
+            </div>
+          )}
+        </div>
 
         <div className="form-grid">
           <label>

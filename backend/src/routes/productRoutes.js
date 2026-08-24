@@ -6,6 +6,7 @@ import {
   deleteProduct,
   getOneProduct,
   importProducts,
+  exportProductsExcel,
 } from "../controllers/productController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -30,6 +31,7 @@ router.post(
 router.put('/update/:id', protect, authorizeRoles("admin"), updateProduct);
 // DELETE A PRODUCT
 router.delete('/delete/:id', protect, authorizeRoles("admin"), deleteProduct);
-
+// product in excel
+router.get("/export/excel", protect, exportProductsExcel);
 
 export default router;

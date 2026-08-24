@@ -78,6 +78,33 @@ export const forgotPassword = async ({ email, password }) => {
 
 export const getProducts = (token) => apiJson('/products?limit=500', token)
 
+export const downloadProductsExcel = async ({ token }) => {
+  const response = await fetch(`${API_BASE_URL}/products/export/excel`, {
+    headers: authHeaders(token),
+  })
+
+  if (!response.ok) {
+    const contentType = response.headers.get('content-type') || ''
+
+    const errorBody = contentType.includes('application/json')
+      ? await response.json()
+      : null
+
+    throw new Error(errorBody?.message || 'Product download failed')
+  }
+
+  const blob = await response.blob()
+
+  const filename = parseFilename(
+    response.headers.get('content-disposition'),
+    `Products_${new Date().toISOString().slice(0, 10)}.xlsx`,
+  )
+
+  downloadBlob(blob, filename)
+
+  return filename
+}
+
 export const getShops = (token) => apiJson('/shops/all', token)
 
 export const getTransferDestinationShops = (token) =>

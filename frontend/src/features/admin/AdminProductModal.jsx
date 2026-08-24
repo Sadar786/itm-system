@@ -41,8 +41,7 @@ export function AdminProductModal({
           Category
           <select
             value={productForm.categoryId}
-            onChange={(event) => onChange('categoryId', event.target.value)}
-            required
+            onChange={(event) => onChange('categoryId', event.target.value)} 
           >
             <option value="">Select category</option>
             {categories.map((category) => (

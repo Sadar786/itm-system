@@ -2,6 +2,7 @@ import Product from "../models/Product.js";
 import XLSX from "xlsx";
 import Category from "../models/Category.js";
 import Unit from "../models/Unit.js";
+import { createProductsWorkbookBuffer } from "../services/excelService.js"
 
 /**
  * =========================
@@ -23,7 +24,7 @@ export const createProduct = async (req, res) => {
     } = req.body;
 
     // Required validation
-    if (!itemCode || !description || !categoryId || !defaultUnitId) {
+    if (!itemCode || !description || !defaultUnitId) {
       return res.status(400).json({
         success: false,
         message: "Required fields are missing",
@@ -45,17 +46,22 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    const product = await Product.create({
+    const productData = {
       itemCode: normalizedCode,
       description,
-      categoryId,
       defaultUnitId,
       barcode,
       isPerishable,
       minimumStock,
       reorderLevel,
       notes,
-    });
+    };
+
+    if (categoryId) {
+      productData.categoryId = categoryId;
+    }
+
+    const product = await Product.create(productData);
 
     return res.status(201).json({
       success: true,
@@ -423,14 +429,13 @@ export const importProducts = async (req, res) => {
       if (
         !row.itemCode ||
         !row.description ||
-        !row.categoryName ||
         !row.unitName
       ) {
         failed.push({
           row: row.rowNumber,
           itemCode: row.itemCode || "",
           reason:
-            "Item Code, Description, Category and Unit are required",
+            "Item Code, Description and Unit are required",
         });
 
         continue;
@@ -461,18 +466,23 @@ export const importProducts = async (req, res) => {
       processedCodes.add(row.itemCode);
 
       // Category lookup
-      const categoryId = categoryMap.get(
-        row.categoryName.toLowerCase()
-      );
+      // Category lookup - optional
+      let categoryId = undefined;
 
-      if (!categoryId) {
-        failed.push({
-          row: row.rowNumber,
-          itemCode: row.itemCode,
-          reason: `Category "${row.categoryName}" not found`,
-        });
+      if (row.categoryName) {
+        categoryId = categoryMap.get(
+          row.categoryName.toLowerCase()
+        );
 
-        continue;
+        if (!categoryId) {
+          failed.push({
+            row: row.rowNumber,
+            itemCode: row.itemCode,
+            reason: `Category "${row.categoryName}" not found`,
+          });
+
+          continue;
+        }
       }
 
       // Unit lookup
@@ -564,5 +574,39 @@ export const importProducts = async (req, res) => {
       message: "Product import failed",
       error: error.message,
     });
+  }
+};
+
+
+
+
+
+export const exportProductsExcel = async (req, res, next) => {
+  try {
+    const products = await Product.find({})
+      .populate("categoryId", "name")
+      .populate("defaultUnitId", "name shortName")
+      .sort({ itemCode: 1 })
+      .lean();
+
+    const buffer = await createProductsWorkbookBuffer({
+      products,
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="Products_${new Date()
+        .toISOString()
+        .slice(0, 10)}.xlsx"`
+    );
+
+    res.send(buffer);
+  } catch (error) {
+    next(error);
   }
 };

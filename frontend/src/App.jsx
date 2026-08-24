@@ -770,10 +770,9 @@ function App() {
     if (
       !trimmedCode ||
       !trimmedDescription ||
-      !adminProductForm.categoryId ||
       !adminProductForm.defaultUnitId
     ) {
-      setError("Product code, description, category, and unit are required.");
+      setError("Product code, description, and unit are required.");
       return;
     }
 
@@ -791,10 +790,19 @@ function App() {
       };
 
       if (selectedProductId) {
-        await updateProduct({ token, productId: selectedProductId, body });
+        await updateProduct({
+          token,
+          productId: selectedProductId,
+          body,
+        });
+
         setMessage("Product updated successfully.");
       } else {
-        await createProduct({ token, body });
+        await createProduct({
+          token,
+          body,
+        });
+
         setMessage("Product created successfully.");
       }
 
@@ -807,6 +815,7 @@ function App() {
       setBusyKey("");
     }
   };
+
 
   const handleUnitFormSubmit = async (event) => {
     event.preventDefault();
@@ -866,15 +875,23 @@ function App() {
     }));
   };
 
-  const handleTransferProductChange = (productId) => {
-    const product = products.find((item) => item._id === productId);
-    const unitId = product?.defaultUnitId?._id || product?.defaultUnitId || "";
-    setTransfer((current) => ({
-      ...current,
-      productId,
-      unitId,
-    }));
-  };
+ const handleTransferProductChange = (productId) => {
+  const product = products.find((item) => item._id === productId);
+
+  const unitId =
+    product?.defaultUnitId?._id ||
+    product?.defaultUnitId ||
+    "";
+
+  setTransfer((current) => ({
+    ...current,
+    productId,
+    unitId,
+  }));
+
+  // Clear search so the dropdown disappears
+  setTransferProductSearch("");
+};
 
   const handleAddStockChange = (field, value) => {
     setAddStock((current) => ({
