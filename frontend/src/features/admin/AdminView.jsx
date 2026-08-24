@@ -1,10 +1,5 @@
-import { useState } from "react";
-import {
-  FileSpreadsheet,
-  Pencil,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { useState, useMemo } from "react";
+import { FileSpreadsheet, Pencil, Plus, Trash2 } from "lucide-react";
 
 export function AdminView({
   isLoggedIn,
@@ -25,7 +20,8 @@ export function AdminView({
   onUnitDelete,
 }) {
   const [activeSection, setActiveSection] = useState("branches");
-
+  const [branchSearch, setBranchSearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
   const canCreateShop = !isShopkeeper || !user?.shopId;
   const showProductSection = !isShopkeeper;
 
@@ -46,6 +42,43 @@ export function AdminView({
       visible: !isShopkeeper,
     },
   ];
+
+  const filteredShops = useMemo(() => {
+    const search = branchSearch.toLowerCase().trim();
+
+    if (!search) return shops;
+
+    return shops.filter((shop) =>
+      [
+        shop.name,
+        shop.code,
+        shop.location,
+        shop.phone,
+        shop.isActive ? "active" : "inactive",
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [shops, branchSearch]);
+
+  const filteredProducts = useMemo(() => {
+    const search = productSearch.toLowerCase().trim();
+
+    if (!search) return products;
+
+    return products.filter((product) =>
+      [
+        product.itemCode,
+        product.description,
+        product.categoryId?.name,
+        product.defaultUnitId?.name,
+        product.defaultUnitId?.shortName,
+        product.isPerishable ? "yes" : "no",
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [products, productSearch]);
 
   return (
     <div className="admin-page">
@@ -74,16 +107,10 @@ export function AdminView({
                 border: "none",
                 borderRadius: "8px",
                 cursor: isLoggedIn ? "pointer" : "not-allowed",
-                fontWeight:
-                  activeSection === section.id ? "700" : "500",
+                fontWeight: activeSection === section.id ? "700" : "500",
                 background:
-                  activeSection === section.id
-                    ? "#111827"
-                    : "#f3f4f6",
-                color:
-                  activeSection === section.id
-                    ? "#ffffff"
-                    : "#374151",
+                  activeSection === section.id ? "#111827" : "#f3f4f6",
+                color: activeSection === section.id ? "#ffffff" : "#374151",
                 transition: "all 0.2s ease",
               }}
             >
@@ -97,24 +124,59 @@ export function AdminView({
       ========================= */}
       {activeSection === "branches" && (
         <section className="panel admin-panel">
-          <div className="panel-title">
-            <h2 style={{ color: "black" }}>
-              Branch management
-            </h2>
+          <div
+            className="panel-title"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "15px",
+              flexWrap: "wrap",
+            }}
+          >
+            <h2 style={{ color: "black", margin: 0 }}>Branch management</h2>
 
-            {canCreateShop ? (
-              <button
-                type="button"
-                className="primary-action"
-                onClick={onCreateShop}
-                disabled={!isLoggedIn}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+              }}
+            >
+              <div
+                style={{
+                  position: "relative",
+                  width: "260px",
+                }}
               >
-                <Plus size={16} />
-                Create branch
-              </button>
-            ) : null}
-          </div>
+                <input
+                  type="text"
+                  placeholder="Search branches..."
+                  value={branchSearch}
+                  onChange={(e) => setBranchSearch(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "8px",
+                    outline: "none",
+                  }}
+                />
+              </div>
 
+              {canCreateShop ? (
+                <button
+                  type="button"
+                  className="primary-action"
+                  onClick={onCreateShop}
+                  disabled={!isLoggedIn}
+                >
+                  <Plus size={16} />
+                  Create branch
+                </button>
+              ) : null}
+            </div>
+          </div>
           <div className="table-wrap admin-table-wrap">
             <table>
               <thead>
@@ -129,7 +191,7 @@ export function AdminView({
               </thead>
 
               <tbody>
-                {shops.map((shop) => (
+                {filteredShops.map((shop) => (
                   <tr key={shop._id}>
                     <td>{shop.name}</td>
 
@@ -139,11 +201,7 @@ export function AdminView({
 
                     <td>{shop.phone || "-"}</td>
 
-                    <td>
-                      {shop.isActive
-                        ? "Active"
-                        : "Inactive"}
-                    </td>
+                    <td>{shop.isActive ? "Active" : "Inactive"}</td>
 
                     <td className="table-actions-cell">
                       <button
@@ -160,9 +218,7 @@ export function AdminView({
                           type="button"
                           className="icon-button secondary-action"
                           title="Delete branch"
-                          onClick={() =>
-                            onShopDelete(shop._id)
-                          }
+                          onClick={() => onShopDelete(shop._id)}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -171,13 +227,12 @@ export function AdminView({
                   </tr>
                 ))}
 
-                {!shops.length && (
+                {!filteredShops.length && (
                   <tr>
-                    <td
-                      colSpan="6"
-                      className="empty-cell"
-                    >
-                      No branches loaded.
+                    <td colSpan="6" className="empty-cell">
+                      {branchSearch
+                        ? "No branches found."
+                        : "No branches loaded."}
                     </td>
                   </tr>
                 )}
@@ -190,208 +245,206 @@ export function AdminView({
       {/* =========================
           PRODUCTS
       ========================= */}
-      {activeSection === "products" &&
-        showProductSection && (
-          <section className="panel admin-panel">
-            <div className="panel-title">
-              <h2 style={{ color: "black" }}>
-                Product management
-              </h2>
+      {activeSection === "products" && showProductSection && (
+        <section className="panel admin-panel">
+          <div
+            className="panel-title"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "15px",
+              flexWrap: "wrap",
+            }}
+          >
+            <h2 style={{ color: "black", margin: 0 }}>Product management</h2>
 
-              <div
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+              }}
+            >
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
                 style={{
-                  display: "flex",
-                  gap: "10px",
+                  width: "260px",
+                  padding: "9px 12px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "8px",
+                  outline: "none",
                 }}
-              >
-                <button
-                  type="button"
-                  className="primary-action"
-                  onClick={onImportProducts}
-                  disabled={!isLoggedIn}
-                >
-                  <FileSpreadsheet size={16} />
-                  Import Excel
-                </button>
-
-                <button
-                  type="button"
-                  className="primary-action"
-                  onClick={onCreateProduct}
-                  disabled={!isLoggedIn}
-                >
-                  <Plus size={16} />
-                  Create product
-                </button>
-              </div>
-            </div>
-
-            <div className="table-wrap admin-table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Item code</th>
-                    <th>Description</th>
-                    <th>Category</th>
-                    <th>Unit</th>
-                    <th>Perishable</th>
-                    <th />
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {products.map((product) => (
-                    <tr key={product._id}>
-                      <td>{product.itemCode}</td>
-
-                      <td>{product.description}</td>
-
-                      <td>
-                        {product.categoryId?.name || "-"}
-                      </td>
-
-                      <td>
-                        {product.defaultUnitId?.shortName ||
-                          product.defaultUnitId?.name ||
-                          "-"}
-                      </td>
-
-                      <td>
-                        {product.isPerishable
-                          ? "Yes"
-                          : "No"}
-                      </td>
-
-                      <td className="table-actions-cell">
-                        <button
-                          type="button"
-                          className="icon-button"
-                          title="Edit product"
-                          onClick={() =>
-                            onProductEdit(product)
-                          }
-                        >
-                          <Pencil size={16} />
-                        </button>
-
-                        <button
-                          type="button"
-                          className="icon-button secondary-action"
-                          title="Delete product"
-                          onClick={() =>
-                            onProductDelete(product._id)
-                          }
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-
-                  {!products.length && (
-                    <tr>
-                      <td
-                        colSpan="6"
-                        className="empty-cell"
-                      >
-                        No products loaded.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
-
-      {/* =========================
-          UNITS
-      ========================= */}
-      {activeSection === "units" &&
-        !isShopkeeper && (
-          <section className="panel admin-panel">
-            <div className="panel-title">
-              <h2 style={{ color: "black" }}>
-                Unit Management
-              </h2>
+              />
 
               <button
                 type="button"
                 className="primary-action"
-                onClick={onCreateUnit}
+                onClick={onImportProducts}
+                disabled={!isLoggedIn}
+              >
+                <FileSpreadsheet size={16} />
+                Import Excel
+              </button>
+
+              <button
+                type="button"
+                className="primary-action"
+                onClick={onCreateProduct}
                 disabled={!isLoggedIn}
               >
                 <Plus size={16} />
-                Create Unit
+                Create product
               </button>
             </div>
+          </div>
 
-            <div className="table-wrap admin-table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Short Name</th>
-                    <th>Base Unit</th>
-                    <th>Factor</th>
-                    <th />
-                  </tr>
-                </thead>
+          <div className="table-wrap admin-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item code</th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Unit</th>
+                  <th>Perishable</th>
+                  <th />
+                </tr>
+              </thead>
 
-                <tbody>
-                  {units.map((unit) => (
-                    <tr key={unit._id}>
-                      <td>{unit.name}</td>
+              <tbody>
+                {filteredProducts.map((product) => (
+                  <tr key={product._id}>
+                    <td>{product.itemCode}</td>
 
-                      <td>{unit.shortName}</td>
+                    <td>{product.description}</td>
 
-                      <td>
-                        {unit.baseUnitId?.shortName || "-"}
-                      </td>
+                    <td>{product.categoryId?.name || "-"}</td>
 
-                      <td>{unit.factor ?? "-"}</td>
+                    <td>
+                      {product.defaultUnitId?.shortName ||
+                        product.defaultUnitId?.name ||
+                        "-"}
+                    </td>
 
-                      <td className="table-actions-cell">
-                        <button
-                          type="button"
-                          className="icon-button"
-                          title="Edit unit"
-                          onClick={() =>
-                            onUnitEdit(unit)
-                          }
-                        >
-                          <Pencil size={16} />
-                        </button>
+                    <td>{product.isPerishable ? "Yes" : "No"}</td>
 
-                        <button
-                          type="button"
-                          className="icon-button secondary-action"
-                          title="Delete unit"
-                          onClick={() =>
-                            onUnitDelete(unit._id)
-                          }
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-
-                  {!units.length && (
-                    <tr>
-                      <td
-                        colSpan="5"
-                        className="empty-cell"
+                    <td className="table-actions-cell">
+                      <button
+                        type="button"
+                        className="icon-button"
+                        title="Edit product"
+                        onClick={() => onProductEdit(product)}
                       >
-                        No units loaded.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
+                        <Pencil size={16} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="icon-button secondary-action"
+                        title="Delete product"
+                        onClick={() => onProductDelete(product._id)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {!filteredProducts.length && (
+                  <tr>
+                    <td colSpan="6" className="empty-cell">
+                      {productSearch
+                        ? "No products found."
+                        : "No products loaded."}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* =========================
+          UNITS
+      ========================= */}
+      {activeSection === "units" && !isShopkeeper && (
+        <section className="panel admin-panel">
+          <div className="panel-title">
+            <h2 style={{ color: "black" }}>Unit Management</h2>
+
+            <button
+              type="button"
+              className="primary-action"
+              onClick={onCreateUnit}
+              disabled={!isLoggedIn}
+            >
+              <Plus size={16} />
+              Create Unit
+            </button>
+          </div>
+
+          <div className="table-wrap admin-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Short Name</th>
+                  <th>Base Unit</th>
+                  <th>Factor</th>
+                  <th />
+                </tr>
+              </thead>
+
+              <tbody>
+                {units.map((unit) => (
+                  <tr key={unit._id}>
+                    <td>{unit.name}</td>
+
+                    <td>{unit.shortName}</td>
+
+                    <td>{unit.baseUnitId?.shortName || "-"}</td>
+
+                    <td>{unit.factor ?? "-"}</td>
+
+                    <td className="table-actions-cell">
+                      <button
+                        type="button"
+                        className="icon-button"
+                        title="Edit unit"
+                        onClick={() => onUnitEdit(unit)}
+                      >
+                        <Pencil size={16} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="icon-button secondary-action"
+                        title="Delete unit"
+                        onClick={() => onUnitDelete(unit._id)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {!units.length && (
+                  <tr>
+                    <td colSpan="5" className="empty-cell">
+                      No units loaded.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
