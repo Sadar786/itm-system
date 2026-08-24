@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Notice } from "./components/Notice";
 import { Sidebar } from "./components/Sidebar";
 import { ViewTabs } from "./components/ViewTabs";
@@ -32,6 +32,7 @@ import {
   getTransferDestinationShops,
   getTransfers,
   getUnits,
+  importProducts,
   login,
   signup,
   updateProduct,
@@ -89,9 +90,11 @@ function App() {
   const [name, setName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [authMode, setAuthMode] = useState("login");
+  const productImportInputRef = useRef(null);
   const [token, setToken] = useState(
     () => localStorage.getItem("inventoryToken") || "",
   );
+
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem("inventoryUser");
     return stored ? JSON.parse(stored) : null;
@@ -699,6 +702,63 @@ function App() {
     }
   };
 
+  const handleImportProducts = async (event) => {
+    const file = event.target.files?.[0];
+
+    // Allow selecting the same file again later
+    event.target.value = "";
+
+    if (!file) return;
+
+    const extension = file.name.split(".").pop()?.toLowerCase();
+
+    if (!["xlsx", "xls"].includes(extension)) {
+      setError("Please select an Excel file (.xlsx or .xls).");
+      return;
+    }
+
+    setBusyKey("product-import");
+    setError("");
+    setMessage("");
+
+    try {
+      const data = await importProducts({
+        token,
+        file,
+      });
+
+      const summary = data.summary || {};
+
+      // Reload products so newly imported products appear immediately
+      await loadProducts();
+
+      setMessage(
+        `Import completed. Created: ${summary.created || 0}, ` +
+          `Skipped: ${summary.skipped || 0}, ` +
+          `Failed: ${summary.failed || 0}.`,
+      );
+
+      // Keep detailed results in browser console for now
+      if (summary.failed > 0) {
+        console.log("Failed product rows:", data.failed);
+      }
+
+      if (summary.skipped > 0) {
+        console.log("Skipped product rows:", data.skipped);
+      }
+    } catch (importError) {
+      setError(importError.message);
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  const openProductImport = () => {
+    if (!isLoggedIn || busyKey) return;
+
+    productImportInputRef.current?.click();
+  };
+
   const handleProductFormSubmit = async (event) => {
     event.preventDefault();
     setError("");
@@ -1060,6 +1120,13 @@ function App() {
 
   return (
     <main className="app-shell">
+      <input
+        ref={productImportInputRef}
+        type="file"
+        accept=".xlsx,.xls"
+        style={{ display: "none" }}
+        onChange={handleImportProducts}
+      />
       <Sidebar
         authMode={authMode}
         busyKey={busyKey}
@@ -1119,6 +1186,7 @@ function App() {
             products={products}
             shops={shops}
             units={units}
+            onImportProducts={openProductImport}
             onCreateUnit={openCreateUnitModal}
             onUnitEdit={(unit) => {
               handleUnitEdit(unit);
@@ -1218,7 +1286,6 @@ function App() {
           isEdit={activeModal === "unit-edit"}
         />
 
-        
         <TransferDetailModal
           isOpen={Boolean(selectedTransferDetail)}
           onClose={() => setSelectedTransferDetail(null)}

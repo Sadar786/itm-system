@@ -119,6 +119,26 @@ export const updateProduct = ({ token, productId, body }) =>
     body: JSON.stringify(body),
   })
 
+  export const importProducts = async ({ token, file }) => {
+  const formData = new FormData();
+
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/products/import`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: formData,
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Product import failed");
+  }
+
+  return data;
+};
+
 export const deleteProduct = ({ token, productId }) =>
   apiJson(`/products/delete/${productId}`, token, {
     method: 'DELETE',
