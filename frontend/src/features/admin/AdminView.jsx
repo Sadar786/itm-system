@@ -1,4 +1,10 @@
-import { FileSpreadsheet, Pencil, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import {
+  FileSpreadsheet,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 export function AdminView({
   isLoggedIn,
@@ -18,15 +24,84 @@ export function AdminView({
   onUnitEdit,
   onUnitDelete,
 }) {
+  const [activeSection, setActiveSection] = useState("branches");
+
   const canCreateShop = !isShopkeeper || !user?.shopId;
   const showProductSection = !isShopkeeper;
 
+  const sections = [
+    {
+      id: "branches",
+      label: "Branches",
+      visible: true,
+    },
+    {
+      id: "products",
+      label: "Products",
+      visible: showProductSection,
+    },
+    {
+      id: "units",
+      label: "Units",
+      visible: !isShopkeeper,
+    },
+  ];
+
   return (
     <div className="admin-page">
-      <div className="admin-sections">
+      {/* =========================
+          ADMIN TABS
+      ========================= */}
+      <div
+        style={{
+          display: "flex",
+          gap: "10px",
+          marginBottom: "20px",
+          borderBottom: "1px solid #ddd",
+          paddingBottom: "10px",
+        }}
+      >
+        {sections
+          .filter((section) => section.visible)
+          .map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => setActiveSection(section.id)}
+              disabled={!isLoggedIn}
+              style={{
+                padding: "10px 22px",
+                border: "none",
+                borderRadius: "8px",
+                cursor: isLoggedIn ? "pointer" : "not-allowed",
+                fontWeight:
+                  activeSection === section.id ? "700" : "500",
+                background:
+                  activeSection === section.id
+                    ? "#111827"
+                    : "#f3f4f6",
+                color:
+                  activeSection === section.id
+                    ? "#ffffff"
+                    : "#374151",
+                transition: "all 0.2s ease",
+              }}
+            >
+              {section.label}
+            </button>
+          ))}
+      </div>
+
+      {/* =========================
+          BRANCHES
+      ========================= */}
+      {activeSection === "branches" && (
         <section className="panel admin-panel">
           <div className="panel-title">
-            <h2 style={{ color: "black" }}>Branch management</h2>
+            <h2 style={{ color: "black" }}>
+              Branch management
+            </h2>
+
             {canCreateShop ? (
               <button
                 type="button"
@@ -34,7 +109,8 @@ export function AdminView({
                 onClick={onCreateShop}
                 disabled={!isLoggedIn}
               >
-                <Plus size={16} /> Create branch
+                <Plus size={16} />
+                Create branch
               </button>
             ) : null}
           </div>
@@ -51,14 +127,24 @@ export function AdminView({
                   <th />
                 </tr>
               </thead>
+
               <tbody>
                 {shops.map((shop) => (
                   <tr key={shop._id}>
                     <td>{shop.name}</td>
+
                     <td>{shop.code}</td>
+
                     <td>{shop.location || "-"}</td>
+
                     <td>{shop.phone || "-"}</td>
-                    <td>{shop.isActive ? "Active" : "Inactive"}</td>
+
+                    <td>
+                      {shop.isActive
+                        ? "Active"
+                        : "Inactive"}
+                    </td>
+
                     <td className="table-actions-cell">
                       <button
                         type="button"
@@ -68,12 +154,15 @@ export function AdminView({
                       >
                         <Pencil size={16} />
                       </button>
+
                       {!isShopkeeper ? (
                         <button
                           type="button"
                           className="icon-button secondary-action"
                           title="Delete branch"
-                          onClick={() => onShopDelete(shop._id)}
+                          onClick={() =>
+                            onShopDelete(shop._id)
+                          }
                         >
                           <Trash2 size={16} />
                         </button>
@@ -81,9 +170,13 @@ export function AdminView({
                     </td>
                   </tr>
                 ))}
+
                 {!shops.length && (
                   <tr>
-                    <td colSpan="6" className="empty-cell">
+                    <td
+                      colSpan="6"
+                      className="empty-cell"
+                    >
                       No branches loaded.
                     </td>
                   </tr>
@@ -92,12 +185,25 @@ export function AdminView({
             </table>
           </div>
         </section>
-        {showProductSection ? (
+      )}
+
+      {/* =========================
+          PRODUCTS
+      ========================= */}
+      {activeSection === "products" &&
+        showProductSection && (
           <section className="panel admin-panel">
             <div className="panel-title">
-              <h2 style={{ color: "black" }}>Product management</h2>
+              <h2 style={{ color: "black" }}>
+                Product management
+              </h2>
 
-              <div style={{ display: "flex", gap: "10px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                }}
+              >
                 <button
                   type="button"
                   className="primary-action"
@@ -132,41 +238,62 @@ export function AdminView({
                     <th />
                   </tr>
                 </thead>
+
                 <tbody>
                   {products.map((product) => (
                     <tr key={product._id}>
                       <td>{product.itemCode}</td>
+
                       <td>{product.description}</td>
-                      <td>{product.categoryId?.name || "-"}</td>
+
+                      <td>
+                        {product.categoryId?.name || "-"}
+                      </td>
+
                       <td>
                         {product.defaultUnitId?.shortName ||
                           product.defaultUnitId?.name ||
                           "-"}
                       </td>
-                      <td>{product.isPerishable ? "Yes" : "No"}</td>
+
+                      <td>
+                        {product.isPerishable
+                          ? "Yes"
+                          : "No"}
+                      </td>
+
                       <td className="table-actions-cell">
                         <button
                           type="button"
                           className="icon-button"
                           title="Edit product"
-                          onClick={() => onProductEdit(product)}
+                          onClick={() =>
+                            onProductEdit(product)
+                          }
                         >
                           <Pencil size={16} />
                         </button>
+
                         <button
                           type="button"
                           className="icon-button secondary-action"
                           title="Delete product"
-                          onClick={() => onProductDelete(product._id)}
+                          onClick={() =>
+                            onProductDelete(product._id)
+                          }
                         >
                           <Trash2 size={16} />
                         </button>
                       </td>
                     </tr>
                   ))}
+
                   {!products.length && (
                     <tr>
-                      <td colSpan="6" className="empty-cell">
+                      <td
+                        colSpan="6"
+                        className="empty-cell"
+                      >
                         No products loaded.
                       </td>
                     </tr>
@@ -175,12 +302,18 @@ export function AdminView({
               </table>
             </div>
           </section>
-        ) : null}
+        )}
 
-        {!isShopkeeper && (
+      {/* =========================
+          UNITS
+      ========================= */}
+      {activeSection === "units" &&
+        !isShopkeeper && (
           <section className="panel admin-panel">
             <div className="panel-title">
-              <h2 style={{ color: "black" }}>Unit Management</h2>
+              <h2 style={{ color: "black" }}>
+                Unit Management
+              </h2>
 
               <button
                 type="button"
@@ -188,7 +321,8 @@ export function AdminView({
                 onClick={onCreateUnit}
                 disabled={!isLoggedIn}
               >
-                <Plus size={16} /> Create Unit
+                <Plus size={16} />
+                Create Unit
               </button>
             </div>
 
@@ -208,15 +342,23 @@ export function AdminView({
                   {units.map((unit) => (
                     <tr key={unit._id}>
                       <td>{unit.name}</td>
+
                       <td>{unit.shortName}</td>
-                      <td>{unit.baseUnitId?.shortName || "-"}</td>
+
+                      <td>
+                        {unit.baseUnitId?.shortName || "-"}
+                      </td>
+
                       <td>{unit.factor ?? "-"}</td>
 
                       <td className="table-actions-cell">
                         <button
                           type="button"
                           className="icon-button"
-                          onClick={() => onUnitEdit(unit)}
+                          title="Edit unit"
+                          onClick={() =>
+                            onUnitEdit(unit)
+                          }
                         >
                           <Pencil size={16} />
                         </button>
@@ -224,7 +366,10 @@ export function AdminView({
                         <button
                           type="button"
                           className="icon-button secondary-action"
-                          onClick={() => onUnitDelete(unit._id)}
+                          title="Delete unit"
+                          onClick={() =>
+                            onUnitDelete(unit._id)
+                          }
                         >
                           <Trash2 size={16} />
                         </button>
@@ -234,7 +379,10 @@ export function AdminView({
 
                   {!units.length && (
                     <tr>
-                      <td colSpan="5" className="empty-cell">
+                      <td
+                        colSpan="5"
+                        className="empty-cell"
+                      >
                         No units loaded.
                       </td>
                     </tr>
@@ -244,7 +392,6 @@ export function AdminView({
             </div>
           </section>
         )}
-      </div>
     </div>
   );
 }
