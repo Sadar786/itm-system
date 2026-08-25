@@ -357,6 +357,7 @@ function App() {
 
   const handleLogin = async (event) => {
     event.preventDefault();
+
     setError("");
     setMessage("");
     setBusyKey("login");
@@ -366,13 +367,19 @@ function App() {
 
       localStorage.setItem("inventoryToken", data.token);
       localStorage.setItem("inventoryUser", JSON.stringify(data.user));
+
+      // Store login time
+      localStorage.setItem("inventoryLoginTime", Date.now().toString());
+
       setToken(data.token);
       setUser(data.user);
       setShopId(data.user?.shopId || "");
+
       setTransfer((current) => ({
         ...current,
         fromShopId: data.user?.shopId || "",
       }));
+
       setMessage("Login successful. Inventory is loading.");
     } catch (loginError) {
       setError(loginError.message);
@@ -452,22 +459,53 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem("inventoryToken");
     localStorage.removeItem("inventoryUser");
+    localStorage.removeItem("inventoryLoginTime");
+
     setToken("");
     setUser(null);
     setProducts([]);
     setShops([]);
     setTransfers([]);
     setMovements([]);
+
     setTransferPagination({
       total: 0,
       page: 1,
       pages: 1,
       limit: PAGE_SIZE,
     });
+
     setMessage("");
     setError("");
     setAuthMode("login");
   };
+
+  useEffect(() => {
+    const loginTime = localStorage.getItem("inventoryLoginTime");
+
+    if (!loginTime || !token) {
+      return;
+    }
+
+    const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+    const elapsedTime = Date.now() - Number(loginTime);
+    const remainingTime = TWELVE_HOURS - elapsedTime;
+
+    // Already expired
+    if (remainingTime <= 0) {
+      handleLogout();
+      return;
+    }
+
+    // Automatically logout when 12 hours are completed
+    const logoutTimer = setTimeout(() => {
+      handleLogout();
+    }, remainingTime);
+
+    return () => {
+      clearTimeout(logoutTimer);
+    };
+  }, [token]);
 
   const handleShopIdChange = (value) => {
     setShopId(value);
