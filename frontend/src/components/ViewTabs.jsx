@@ -25,7 +25,7 @@ export function ViewTabs({ activeView, onChange, isAdmin }) {
         onClick={() => onChange('transfers')}
       >
         <Repeat2 size={16} />
-        Transfers
+        Transfers History
       </button>
       {isAdmin ? (
         console.log("isAdmin from ViewTabs:", isAdmin), // Log the value of isAdmin for debugging

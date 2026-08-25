@@ -1266,3 +1266,230 @@ tr.row-highlight td {
 .product-search-results::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+
+
+/* =========================================
+   TRANSFER ITEMS LIST
+========================================= */
+
+.transfer-items-list {
+  margin-top: 18px;
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+/* Header */
+
+.transfer-items-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.transfer-items-header strong {
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+
+/* =========================================
+   EACH PRODUCT ROW
+========================================= */
+
+.transfer-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px 100px 42px;
+  align-items: center;
+  gap: 14px;
+
+  margin: 8px 10px;
+  padding: 11px 12px;
+
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.transfer-item-row:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+}
+
+
+/* =========================================
+   PRODUCT INFORMATION
+========================================= */
+
+.transfer-item-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.transfer-item-info strong {
+  overflow: hidden;
+
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-item-info span {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+
+/* =========================================
+   UNIT
+========================================= */
+
+.transfer-item-unit {
+  padding: 6px 8px;
+
+  border-radius: 6px;
+  background: #f1f5f9;
+
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+
+/* =========================================
+   QUANTITY
+========================================= */
+
+.transfer-item-quantity {
+  padding: 6px 8px;
+
+  border-radius: 6px;
+  background: #f0fdf4;
+
+  color: #166534;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+
+/* =========================================
+   REMOVE BUTTON
+========================================= */
+
+.transfer-item-row .icon-button {
+  width: 34px;
+  height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+
+  background: #fef2f2;
+  color: #dc2626;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.transfer-item-row .icon-button:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+  transform: scale(1.05);
+}
+
+.transfer-item-row .icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+/* =========================================
+   SCROLLING FOR MANY PRODUCTS
+========================================= */
+
+.transfer-items-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Scrollbar */
+
+.transfer-items-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.transfer-items-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.transfer-items-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+.transfer-items-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 650px) {
+  .transfer-item-row {
+    grid-template-columns: minmax(0, 1fr) 70px 70px 36px;
+    gap: 8px;
+    padding: 9px;
+    margin: 6px 8px;
+  }
+
+  .transfer-item-info strong {
+    font-size: 12px;
+  }
+
+  .transfer-item-info span {
+    font-size: 10px;
+  }
+
+  .transfer-item-unit,
+  .transfer-item-quantity {
+    font-size: 11px;
+    padding: 5px;
+  }
+
+  .transfer-item-row .icon-button {
+    width: 30px;
+    height: 30px;
+  }
+}

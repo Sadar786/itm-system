@@ -28,6 +28,7 @@ import {
   getCategories,
   getMovements,
   getProducts,
+  searchProducts,
   getShops,
   getTransferDestinationShops,
   getTransfers,
@@ -52,10 +53,13 @@ const emptyAddStock = {
 const emptyTransfer = {
   fromShopId: "",
   toShopId: "",
+  remarks: "",
+};
+
+const emptyTransferItem = {
   productId: "",
   unitId: "",
   quantity: "",
-  remarks: "",
 };
 
 const PAGE_SIZE = 20;
@@ -156,11 +160,15 @@ function App() {
   });
   const [addProductSearch, setAddProductSearch] = useState("");
   const [transferProductSearch, setTransferProductSearch] = useState("");
+  const [transferSearchProducts, setTransferSearchProducts] = useState([]);
+  const [transferSearchBusy, setTransferSearchBusy] = useState(false);
   const [addStock, setAddStock] = useState(emptyAddStock);
   const [transfer, setTransfer] = useState(() => ({
     ...emptyTransfer,
     fromShopId: user?.shopId || "",
   }));
+
+  const [transferItems, setTransferItems] = useState([]);
   const [activeModal, setActiveModal] = useState(null);
   const [selectedTransferDetail, setSelectedTransferDetail] = useState(null);
 
@@ -174,10 +182,15 @@ function App() {
     [addStock.productId, products],
   );
 
-  const selectedTransferProduct = useMemo(
-    () => products.find((product) => product._id === transfer.productId),
-    [products, transfer.productId],
-  );
+  const selectedTransferProduct = useMemo(() => {
+    return (
+      transferSearchProducts.find(
+        (product) => product._id === transfer.productId,
+      ) ||
+      products.find((product) => product._id === transfer.productId) ||
+      null
+    );
+  }, [transferSearchProducts, products, transfer.productId]);
 
   const assignedShopId = useMemo(
     () => getId(user?.shopId) || getId(shopId),
@@ -203,10 +216,29 @@ function App() {
     );
   }, [transferDestinationShops, transfer.fromShopId, assignedShopId]);
 
-  const transferableProducts = useMemo(() => {
-    if (!transfer.fromShopId.trim()) return [];
-    return products;
-  }, [products, transfer.fromShopId]);
+  const handleTransferProductSearch = async (value) => {
+    setTransferProductSearch(value);
+
+    const search = value.trim();
+
+    if (!search) {
+      setTransferSearchProducts([]);
+      return;
+    }
+
+    try {
+      setTransferSearchBusy(true);
+
+      const data = await searchProducts(token, search, 20);
+
+      setTransferSearchProducts(data.data || []);
+    } catch (searchError) {
+      console.error("Product search failed:", searchError);
+      setTransferSearchProducts([]);
+    } finally {
+      setTransferSearchBusy(false);
+    }
+  };
 
   const filteredAddProducts = useMemo(() => {
     const needle = addProductSearch.trim().toLowerCase();
@@ -219,26 +251,11 @@ function App() {
     );
   }, [addProductSearch, products]);
 
-  const filteredTransferProducts = useMemo(() => {
-    const needle = transferProductSearch.trim().toLowerCase();
-    if (!needle) return transferableProducts;
-
-    return transferableProducts.filter((product) =>
-      `${product.itemCode || ""} ${product.description || ""}`
-        .toLowerCase()
-        .includes(needle),
-    );
-  }, [transferProductSearch, transferableProducts]);
-
-  const transferQuantity = Number(transfer.quantity || 0);
   const isTransferSubmitDisabled =
     !transfer.fromShopId ||
     !transfer.toShopId ||
-    !transfer.productId ||
-    !transfer.unitId ||
-    !Number.isFinite(transferQuantity) ||
-    transferQuantity <= 0 ||
-    transfer.fromShopId === transfer.toShopId;
+    transfer.fromShopId === transfer.toShopId ||
+    transferItems.length === 0;
 
   const loadProducts = async (authToken = token) => {
     const data = await getProducts(authToken);
@@ -816,7 +833,6 @@ function App() {
     }
   };
 
-
   const handleUnitFormSubmit = async (event) => {
     event.preventDefault();
 
@@ -875,23 +891,23 @@ function App() {
     }));
   };
 
- const handleTransferProductChange = (productId) => {
-  const product = products.find((item) => item._id === productId);
+  const handleTransferProductChange = (productId) => {
+    const product =
+      transferSearchProducts.find((item) => item._id === productId) ||
+      products.find((item) => item._id === productId);
 
-  const unitId =
-    product?.defaultUnitId?._id ||
-    product?.defaultUnitId ||
-    "";
+    const unitId = product?.defaultUnitId?._id || product?.defaultUnitId || "";
 
-  setTransfer((current) => ({
-    ...current,
-    productId,
-    unitId,
-  }));
+    setTransfer((current) => ({
+      ...current,
+      productId,
+      unitId,
+      quantity: "",
+    }));
 
-  // Clear search so the dropdown disappears
-  setTransferProductSearch("");
-};
+    setTransferProductSearch("");
+    setTransferSearchProducts([]);
+  };
 
   const handleAddStockChange = (field, value) => {
     setAddStock((current) => ({
@@ -904,14 +920,13 @@ function App() {
     setTransfer((current) => ({
       ...current,
       [field]: value,
-      ...(field === "fromShopId"
-        ? {
-            productId: "",
-            unitId: "",
-            quantity: "",
-          }
-        : {}),
     }));
+
+    if (field === "fromShopId") {
+      setTransferItems([]);
+      setTransferProductSearch("");
+      setTransferSearchProducts([]);
+    }
   };
 
   const openAddStockModal = () => {
@@ -924,11 +939,16 @@ function App() {
   const openTransferModal = () => {
     setError("");
     setMessage("");
-    setTransfer((current) => ({
-      ...current,
-      fromShopId: current.fromShopId || assignedShopId || "",
-    }));
+
+    setTransfer({
+      ...emptyTransfer,
+      fromShopId: assignedShopId || "",
+    });
+
+    setTransferItems([]);
     setTransferProductSearch("");
+    setTransferSearchProducts([]);
+
     setActiveModal("transfer-stock");
   };
 
@@ -1007,23 +1027,74 @@ function App() {
     }
   };
 
+  const handleAddTransferItem = () => {
+    setError("");
+    setMessage("");
+
+    const quantity = Number(transfer.quantity);
+
+    if (!transfer.productId) {
+      setError("Please select a product.");
+      return;
+    }
+
+    if (!transfer.unitId) {
+      setError("Please select a unit.");
+      return;
+    }
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setError("Please enter a quantity greater than 0.");
+      return;
+    }
+
+    const alreadyAdded = transferItems.some(
+      (item) => item.productId === transfer.productId,
+    );
+
+    if (alreadyAdded) {
+      setError(
+        "This product is already added. Remove it first if you want to change the quantity.",
+      );
+      return;
+    }
+
+    setTransferItems((current) => [
+      ...current,
+      {
+        productId: transfer.productId,
+        unitId: transfer.unitId,
+        quantity,
+      },
+    ]);
+
+    // Clear only product fields so another product can be added
+    setTransfer((current) => ({
+      ...current,
+      productId: "",
+      unitId: "",
+      quantity: "",
+    }));
+
+    setTransferProductSearch("");
+    setTransferSearchProducts([]);
+
+    setMessage("Product added to transfer list.");
+  };
+
+  const handleRemoveTransferItem = (productId) => {
+    setTransferItems((current) =>
+      current.filter((item) => item.productId !== productId),
+    );
+  };
+
   const handleTransferStock = async (event) => {
     event.preventDefault();
     setError("");
     setMessage("");
 
-    const quantity = Number(transfer.quantity);
-    if (
-      !transfer.fromShopId ||
-      !transfer.toShopId ||
-      !transfer.productId ||
-      !transfer.unitId ||
-      !Number.isFinite(quantity) ||
-      quantity <= 0
-    ) {
-      setError(
-        "Select source, destination, product, and a quantity greater than 0.",
-      );
+    if (!transfer.fromShopId || !transfer.toShopId) {
+      setError("Please select source and destination shops.");
       return;
     }
 
@@ -1032,10 +1103,17 @@ function App() {
       return;
     }
 
-    const productName = formatProductName(selectedTransferProduct);
+    if (!transferItems.length) {
+      setError("Please add at least one product to transfer.");
+      return;
+    }
+
     const confirmed = window.confirm(
-      `Transfer ${quantity} of ${productName} to the selected branch?`,
+      `Are you sure you want to transfer ${transferItems.length} product${
+        transferItems.length > 1 ? "s" : ""
+      } to the selected branch?`,
     );
+
     if (!confirmed) return;
 
     setBusyKey("transfer-stock");
@@ -1047,22 +1125,29 @@ function App() {
           fromShopId: transfer.fromShopId,
           toShopId: transfer.toShopId,
           remarks: transfer.remarks,
-          items: [
-            {
-              productId: transfer.productId,
-              unitId: transfer.unitId,
-              quantity,
-            },
-          ],
+          items: transferItems,
         },
       });
 
-      setMessage(data.message || "Transfer created successfully.");
+      setMessage(
+        data.message ||
+          `${transferItems.length} product${
+            transferItems.length > 1 ? "s" : ""
+          } transferred successfully.`,
+      );
+
       setTransfer({
         ...emptyTransfer,
         fromShopId: assignedShopId || "",
       });
+
+      setTransferItems([]);
+
+      setTransferProductSearch("");
+      setTransferSearchProducts([]);
+
       setActiveModal(null);
+
       await Promise.all([loadTransfers(), loadMovements()]);
     } catch (transferError) {
       setError(transferError.message);
@@ -1252,16 +1337,20 @@ function App() {
           destinationShops={destinationShops}
           isOpen={activeModal === "transfer-stock"}
           isSubmitDisabled={isTransferSubmitDisabled}
+          onAddItem={handleAddTransferItem}
           onClose={closeModal}
           onProductChange={handleTransferProductChange}
-          onProductSearchChange={setTransferProductSearch}
+          onProductSearchChange={handleTransferProductSearch}
+          onRemoveItem={handleRemoveTransferItem}
           onSubmit={handleTransferStock}
           onTransferChange={handleTransferChange}
           productSearch={transferProductSearch}
           selectedProduct={selectedTransferProduct}
           sourceShops={sourceShops}
-          transferableProducts={filteredTransferProducts}
+          transferableProducts={transferSearchProducts}
           transfer={transfer}
+          transferItems={transferItems}
+          products={products}
           units={units}
         />
 

@@ -78,6 +78,15 @@ export const forgotPassword = async ({ email, password }) => {
 
 export const getProducts = (token) => apiJson('/products?limit=500', token)
 
+export const searchProducts = (token, search, limit = 20) => {
+  const params = new URLSearchParams();
+
+  params.set("search", search.trim());
+  params.set("limit", limit);
+
+  return apiJson(`/products?${params.toString()}`, token);
+};
+
 export const downloadProductsExcel = async ({ token }) => {
   const response = await fetch(`${API_BASE_URL}/products/export/excel`, {
     headers: authHeaders(token),

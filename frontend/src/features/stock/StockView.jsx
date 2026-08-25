@@ -55,8 +55,8 @@ export function StockView({
                 <th>Date</th>
                 <th>Type</th>
                 <th>Item</th>
-                <th>Branch</th>
-                <th>Related Branch</th>
+                <th>Transfered To</th>
+                <th>Transfered from</th>
                 <th>Qty</th>
                 <th>Unit</th>
               </tr>
