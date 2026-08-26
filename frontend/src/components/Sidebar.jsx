@@ -1,7 +1,7 @@
 import { BranchPanel } from "./BranchPanel";
 import { ReportDatePanel } from "./ReportDatePanel";
 import { SessionPanel } from "./SessionPanel";
-import logo from "../assets/logo.png";
+import logo from "../assets/logo1.jpeg";
 
 export function Sidebar({
   busyKey,

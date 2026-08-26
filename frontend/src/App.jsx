@@ -929,23 +929,27 @@ function App() {
     }));
   };
 
-  const handleTransferProductChange = (productId) => {
-    const product =
-      transferSearchProducts.find((item) => item._id === productId) ||
-      products.find((item) => item._id === productId);
+const handleTransferProductChange = (productId) => {
+  const product =
+    transferSearchProducts.find((item) => item._id === productId) ||
+    products.find((item) => item._id === productId);
 
-    const unitId = product?.defaultUnitId?._id || product?.defaultUnitId || "";
+  const unitId =
+    product?.defaultUnitId?._id ||
+    product?.defaultUnitId ||
+    "";
 
-    setTransfer((current) => ({
-      ...current,
-      productId,
-      unitId,
-      quantity: "",
-    }));
+  setTransfer((current) => ({
+    ...current,
+    productId,
+    unitId,
+    quantity: "",
+    selectedProduct: product || null,
+  }));
 
-    setTransferProductSearch("");
-    setTransferSearchProducts([]);
-  };
+  setTransferProductSearch("");
+  setTransferSearchProducts([]);
+};
 
   const handleAddStockChange = (field, value) => {
     setAddStock((current) => ({
@@ -1066,59 +1070,80 @@ function App() {
   };
 
   const handleAddTransferItem = () => {
-    setError("");
-    setMessage("");
+  setError("");
+  setMessage("");
 
-    const quantity = Number(transfer.quantity);
+  const quantity = Number(transfer.quantity);
 
-    if (!transfer.productId) {
-      setError("Please select a product.");
-      return;
-    }
+  if (!transfer.productId) {
+    setError("Please select a product.");
+    return;
+  }
 
-    if (!transfer.unitId) {
-      setError("Please select a unit.");
-      return;
-    }
+  if (!transfer.unitId) {
+    setError("Please select a unit.");
+    return;
+  }
 
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setError("Please enter a quantity greater than 0.");
-      return;
-    }
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    setError("Please enter a quantity greater than 0.");
+    return;
+  }
 
-    const alreadyAdded = transferItems.some(
-      (item) => item.productId === transfer.productId,
+  const alreadyAdded = transferItems.some(
+    (item) => item.productId === transfer.productId,
+  );
+
+  if (alreadyAdded) {
+    setError(
+      "This product is already added. Remove it first if you want to change the quantity.",
+    );
+    return;
+  }
+
+  // Get the selected product object
+  const product =
+    transfer.selectedProduct ||
+    transferSearchProducts.find(
+      (item) => item._id === transfer.productId,
+    ) ||
+    products.find(
+      (item) => item._id === transfer.productId,
     );
 
-    if (alreadyAdded) {
-      setError(
-        "This product is already added. Remove it first if you want to change the quantity.",
-      );
-      return;
-    }
+  if (!product) {
+    setError("Product information could not be found.");
+    return;
+  }
 
-    setTransferItems((current) => [
-      ...current,
-      {
-        productId: transfer.productId,
-        unitId: transfer.unitId,
-        quantity,
-      },
-    ]);
+  setTransferItems((current) => [
+    ...current,
+    {
+      productId: transfer.productId,
 
-    // Clear only product fields so another product can be added
-    setTransfer((current) => ({
-      ...current,
-      productId: "",
-      unitId: "",
-      quantity: "",
-    }));
+      // IMPORTANT:
+      // Keep the complete product object with the transfer item
+      product,
 
-    setTransferProductSearch("");
-    setTransferSearchProducts([]);
+      unitId: transfer.unitId,
+      quantity,
+    },
+  ]);
 
-    setMessage("Product added to transfer list.");
-  };
+  // Clear product fields so another product can be added
+  setTransfer((current) => ({
+    ...current,
+    productId: "",
+    selectedProduct: null,
+    unitId: "",
+    quantity: "",
+  }));
+
+  setTransferProductSearch("");
+  setTransferSearchProducts([]);
+
+  setMessage("Product added to transfer list.");
+};
 
   const handleRemoveTransferItem = (productId) => {
     setTransferItems((current) =>

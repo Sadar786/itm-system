@@ -260,7 +260,7 @@ button:disabled {
   background: rgba(255, 255, 255, 0.06);
 }
 
-.login-panel button[type='submit'] {
+.login-panel button[type="submit"] {
   width: 100%;
 }
 
@@ -364,8 +364,26 @@ button:disabled {
 .date-grid,
 .form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.date-grid > *,
+.form-grid > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.date-grid input,
+.form-grid input,
+.date-grid select,
+.form-grid select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .admin-page {
@@ -443,7 +461,11 @@ button:disabled {
   border: 1px solid rgba(217, 225, 234, 0.9);
   border-radius: var(--radius);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.88)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.96),
+      rgba(255, 255, 255, 0.88)
+    ),
     var(--surface);
   box-shadow: var(--shadow-md);
 }
@@ -1013,12 +1035,19 @@ tr.row-highlight td {
   }
 
   .sidebar {
+    min-width: 0;
     min-height: auto;
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
     border-right: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .sidebar.panel {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .sidebar,
@@ -1085,6 +1114,21 @@ tr.row-highlight td {
     gap: 0;
   }
 
+  @media (max-width: 560px) {
+  .date-grid,
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .date-grid > *,
+  .form-grid > * {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
   .workspace-header {
     align-items: flex-start;
     padding: 14px;
@@ -1130,7 +1174,6 @@ tr.row-highlight td {
     width: 100%;
   }
 }
-
 
 /* ================================
    PRODUCT AUTOCOMPLETE
@@ -1267,8 +1310,6 @@ tr.row-highlight td {
   background: #94a3b8;
 }
 
-
-
 /* =========================================
    TRANSFER ITEMS LIST
 ========================================= */
@@ -1299,7 +1340,6 @@ tr.row-highlight td {
   font-weight: 700;
 }
 
-
 /* =========================================
    EACH PRODUCT ROW
 ========================================= */
@@ -1327,7 +1367,6 @@ tr.row-highlight td {
   border-color: #cbd5e1;
   box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
 }
-
 
 /* =========================================
    PRODUCT INFORMATION
@@ -1357,7 +1396,6 @@ tr.row-highlight td {
   font-weight: 500;
 }
 
-
 /* =========================================
    UNIT
 ========================================= */
@@ -1374,7 +1412,6 @@ tr.row-highlight td {
   text-align: center;
 }
 
-
 /* =========================================
    QUANTITY
 ========================================= */
@@ -1390,7 +1427,6 @@ tr.row-highlight td {
   font-weight: 700;
   text-align: center;
 }
-
 
 /* =========================================
    REMOVE BUTTON
@@ -1432,7 +1468,6 @@ tr.row-highlight td {
   cursor: not-allowed;
 }
 
-
 /* =========================================
    SCROLLING FOR MANY PRODUCTS
 ========================================= */
@@ -1460,7 +1495,6 @@ tr.row-highlight td {
 .transfer-items-list::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
-
 
 /* =========================================
    MOBILE
@@ -1492,4 +1526,67 @@ tr.row-highlight td {
     width: 30px;
     height: 30px;
   }
+}
+
+/* =========================================
+   REPORT DATES
+========================================= */
+
+.sidebar input[type="month"],
+.sidebar input[type="date"] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+
+  background: #ffffff !important;
+  color: #17202e !important;
+  border: 1px solid #d9e1ea !important;
+
+  color-scheme: light;
+
+  /* Give the date text some room before the calendar icon */
+  padding: 10px 38px 10px 12px;
+}
+
+/* Calendar / month picker icon */
+.sidebar input[type="month"]::-webkit-calendar-picker-indicator,
+.sidebar input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  cursor: pointer;
+  filter: none;
+}
+
+/* =========================================
+   DATE RANGE
+   ========================================= */
+
+.sidebar .date-grid {
+  display: grid;
+
+  /* Start and End vertically */
+  grid-template-columns: 1fr;
+
+  gap: 12px;
+
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.sidebar .date-grid label {
+  display: block;
+  font-size:medium;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.sidebar .date-grid input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }

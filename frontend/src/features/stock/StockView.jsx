@@ -55,8 +55,8 @@ export function StockView({
                 <th>Date</th>
                 <th>Type</th>
                 <th>Item</th>
-                <th>Transfered To</th>
                 <th>Transfered from</th>
+                <th>Transfered To</th>
                 <th>Qty</th>
                 <th>Unit</th>
               </tr>
@@ -70,13 +70,14 @@ export function StockView({
                     <strong>{movement.itemCode || '-'}</strong>
                     <span>{movement.product || ''}</span>
                   </td>
-                  <td>
-                    <strong>{movement.shopCode || '-'}</strong>
-                    <span>{movement.shopName || ''}</span>
-                  </td>
+                 
                   <td>
                     <strong>{movement.relatedShopCode || '-'}</strong>
                     <span>{movement.relatedShopName || ''}</span>
+                  </td>
+                   <td>
+                    <strong>{movement.shopCode || '-'}</strong>
+                    <span>{movement.shopName || ''}</span>
                   </td>
                   <td>{Number(movement.quantity || 0).toFixed(3)}</td>
                   <td>{movement.unit || '-'}</td>

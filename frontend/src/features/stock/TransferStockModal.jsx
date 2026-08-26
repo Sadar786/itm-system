@@ -23,8 +23,9 @@ export function TransferStockModal({
   products,
   units,
 }) {
-  const getProductById = (productId) => {
+  const getProductById = (productId, item) => {
     return (
+      item?.product ||
       transferableProducts.find((product) => product._id === productId) ||
       products.find((product) => product._id === productId)
     );
@@ -48,9 +49,7 @@ export function TransferStockModal({
 
               {sourceShops.map((shop) => (
                 <option key={shop._id} value={shop._id}>
-                  {shop.code
-                    ? `${shop.code} - ${shop.name}`
-                    : shop.name}
+                  {shop.code ? `${shop.code} - ${shop.name}` : shop.name}
                 </option>
               ))}
             </select>
@@ -69,9 +68,7 @@ export function TransferStockModal({
 
               {destinationShops.map((shop) => (
                 <option key={shop._id} value={shop._id}>
-                  {shop.code
-                    ? `${shop.code} - ${shop.name}`
-                    : shop.name}
+                  {shop.code ? `${shop.code} - ${shop.name}` : shop.name}
                 </option>
               ))}
             </select>
@@ -84,44 +81,34 @@ export function TransferStockModal({
             Product
             <input
               value={productSearch}
-              onChange={(event) =>
-                onProductSearchChange(event.target.value)
-              }
+              onChange={(event) => onProductSearchChange(event.target.value)}
               placeholder="Search product by code or description"
               autoComplete="off"
             />
           </label>
 
-          {productSearch.trim() &&
-            transferableProducts.length > 0 && (
-              <div className="product-search-results">
-                {transferableProducts.map((product) => (
-                  <button
-                    type="button"
-                    key={product._id}
-                    className="product-search-item"
-                    onClick={() =>
-                      onProductChange(product._id)
-                    }
-                  >
-                    <strong>
-                      {product.itemCode || "-"}
-                    </strong>
+          {productSearch.trim() && transferableProducts.length > 0 && (
+            <div className="product-search-results">
+              {transferableProducts.map((product) => (
+                <button
+                  type="button"
+                  key={product._id}
+                  className="product-search-item"
+                  onClick={() => onProductChange(product._id)}
+                >
+                  <strong>{product.itemCode || "-"}</strong>
 
-                    <span>
-                      {product.description || ""}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+                  <span>{product.description || ""}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
-          {productSearch.trim() &&
-            !transferableProducts.length && (
-              <div className="product-search-empty">
-                No available products found.
-              </div>
-            )}
+          {productSearch.trim() && !transferableProducts.length && (
+            <div className="product-search-empty">
+              No available products found.
+            </div>
+          )}
         </div>
 
         {/* UNIT / QUANTITY */}
@@ -131,10 +118,7 @@ export function TransferStockModal({
             <select
               value={transfer.unitId}
               onChange={(event) =>
-                onTransferChange(
-                  "unitId",
-                  event.target.value,
-                )
+                onTransferChange("unitId", event.target.value)
               }
             >
               <option value="">Select Unit</option>
@@ -155,10 +139,7 @@ export function TransferStockModal({
               min="1"
               value={transfer.quantity}
               onChange={(event) =>
-                onTransferChange(
-                  "quantity",
-                  event.target.value,
-                )
+                onTransferChange("quantity", event.target.value)
               }
             />
           </label>
@@ -170,19 +151,13 @@ export function TransferStockModal({
             <div>
               <span>Product</span>
 
-              <strong>
-                {formatProductName(selectedProduct)}
-              </strong>
+              <strong>{formatProductName(selectedProduct)}</strong>
             </div>
 
             <div>
               <span>Quantity</span>
 
-              <strong>
-                {Number(
-                  transfer.quantity || 0,
-                ).toFixed(3)}
-              </strong>
+              <strong>{Number(transfer.quantity || 0).toFixed(3)}</strong>
             </div>
           </div>
         )}
@@ -207,19 +182,14 @@ export function TransferStockModal({
         {transferItems.length > 0 && (
           <div className="transfer-items-list">
             <div className="transfer-items-header">
-              <strong>
-                Products to Transfer ({transferItems.length})
-              </strong>
+              <strong>Products to Transfer ({transferItems.length})</strong>
             </div>
 
             {transferItems.map((item, index) => {
-              const product = getProductById(
-                item.productId,
-              );
+              const product = getProductById(item.productId, item );
 
               const unit = units.find(
-                (unitItem) =>
-                  unitItem._id === item.unitId,
+                (unitItem) => unitItem._id === item.unitId,
               );
 
               return (
@@ -229,20 +199,14 @@ export function TransferStockModal({
                 >
                   <div className="transfer-item-info">
                     <strong>
-                      {product
-                        ? formatProductName(product)
-                        : "Unknown product"}
+                      {product ? formatProductName(product) : "Unknown product"}
                     </strong>
 
-                    <span>
-                      {product?.itemCode || "-"}
-                    </span>
+                    <span>{product?.itemCode || "-"}</span>
                   </div>
 
                   <div className="transfer-item-unit">
-                    {unit?.shortName ||
-                      unit?.name ||
-                      "-"}
+                    {unit?.shortName || unit?.name || "-"}
                   </div>
 
                   <div className="transfer-item-quantity">
@@ -253,12 +217,8 @@ export function TransferStockModal({
                     type="button"
                     className="icon-button secondary-action"
                     title="Remove product"
-                    onClick={() =>
-                      onRemoveItem(item.productId)
-                    }
-                    disabled={
-                      busyKey === "transfer-stock"
-                    }
+                    onClick={() => onRemoveItem(item.productId)}
+                    disabled={busyKey === "transfer-stock"}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -274,10 +234,7 @@ export function TransferStockModal({
           <textarea
             value={transfer.remarks}
             onChange={(event) =>
-              onTransferChange(
-                "remarks",
-                event.target.value,
-              )
+              onTransferChange("remarks", event.target.value)
             }
             placeholder="Transfer note..."
           />
@@ -296,20 +253,13 @@ export function TransferStockModal({
 
           <button
             type="submit"
-            disabled={
-              busyKey === "transfer-stock" ||
-              isSubmitDisabled
-            }
+            disabled={busyKey === "transfer-stock" || isSubmitDisabled}
           >
             {busyKey === "transfer-stock" ? (
-              <RefreshCw
-                size={16}
-                className="spin"
-              />
+              <RefreshCw size={16} className="spin" />
             ) : (
               <Send size={16} />
             )}
-
             Transfer All ({transferItems.length})
           </button>
         </div>
