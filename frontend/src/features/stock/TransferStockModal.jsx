@@ -37,7 +37,7 @@ export function TransferStockModal({
         {/* SOURCE / DESTINATION */}
         <div className="form-grid">
           <label>
-            From Shop
+            From Branch
             <select
               value={transfer.fromShopId}
               onChange={(event) =>
@@ -56,7 +56,7 @@ export function TransferStockModal({
           </label>
 
           <label>
-            To Shop
+            To Branch
             <select
               value={transfer.toShopId}
               onChange={(event) =>
