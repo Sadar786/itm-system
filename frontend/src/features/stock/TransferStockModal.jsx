@@ -236,7 +236,7 @@ export function TransferStockModal({
             onChange={(event) =>
               onTransferChange("remarks", event.target.value)
             }
-            placeholder="Transfer note..."
+            placeholder="Stock Transfer"
           />
         </label>
 

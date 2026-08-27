@@ -37,7 +37,8 @@ export function SessionPanel({
       ) : (
         <>
           <div className="auth-switch">
-            {['login', 'signup', 'forgot'].map((mode) => (
+            {/* {['login', 'signup', 'forgot'].map((mode) => ( */}
+            {['login', ].map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -130,7 +131,7 @@ export function SessionPanel({
             {authMode === 'signup' ? 'Signup' : authMode === 'forgot' ? 'Reset password' : 'Login'}
           </button>
 
-          <div className="auth-actions">
+          {/* <div className="auth-actions">
             {authMode === 'login' ? (
               <>
                 <button type="button" className="secondary-action" onClick={() => onAuthModeChange('signup')}>
@@ -145,7 +146,7 @@ export function SessionPanel({
                 Back to login
               </button>
             )}
-          </div>
+          </div> */}
         </>
       )}
     </form>

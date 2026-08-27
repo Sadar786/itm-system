@@ -12,7 +12,6 @@ export function Sidebar({
   onLogin,
   onLogout,
   onPasswordChange,
-  onSignup,
   onForgotPassword,
   onConfirmPasswordChange,
   onAuthModeChange,
@@ -54,7 +53,6 @@ export function Sidebar({
         onEmailChange={onEmailChange}
         onLogin={onLogin}
         onLogout={onLogout}
-        onSignup={onSignup}
         onForgotPassword={onForgotPassword}
         onPasswordChange={onPasswordChange}
         onConfirmPasswordChange={onConfirmPasswordChange}

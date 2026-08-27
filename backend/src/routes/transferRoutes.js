@@ -6,6 +6,7 @@ import {
   createTransfer,
   getAllTransfers,
   getTransferById,
+  deleteTransfer,
 } from "../controllers/transferController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
@@ -33,5 +34,14 @@ router.get(
   authorizeRoles("admin", "shop_keeper"),
   getTransferById
 );
+
+
+router.delete(
+  "/:id",
+  protect,
+  authorizeRoles("admin"),
+  deleteTransfer
+);
+
 
 export default router;

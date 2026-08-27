@@ -206,6 +206,11 @@ export const createTransfer = ({ token, body }) =>
 export const getTransfers = ({ token, page = 1, limit = 20 }) =>
   apiJson(`/transfers?page=${page}&limit=${limit}`, token)
 
+export const deleteTransfer = ({ token, transferId }) =>
+  apiJson(`/transfers/${transferId}`, token, {
+    method: "DELETE",
+  })
+
 export const getMovements = ({ token, shopId, startDate, endDate }) => {
   const params = new URLSearchParams()
   if (shopId?.trim()) {

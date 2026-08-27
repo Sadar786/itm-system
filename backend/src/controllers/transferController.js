@@ -5,6 +5,7 @@ import TransferItem from "../models/TransferItem.js";
 import Product from "../models/Product.js";
 import Shop from "../models/Shop.js";
 import Unit from "../models/Unit.js";
+import InventoryMovement from "../models/InventoryMovement.js";
 import { createTransferService } from "../services/transferService.js";
 
 
@@ -447,6 +448,8 @@ export const updateTransfer = async (req, res) => {
  * DELETE /api/transfers/:id
  */
 export const deleteTransfer = async (req, res) => {
+  const session = await mongoose.startSession();
+
   try {
     const { id } = req.params;
 
@@ -457,26 +460,69 @@ export const deleteTransfer = async (req, res) => {
       });
     }
 
-    const deleted = await Transfer.findByIdAndDelete(id);
+    // Extra backend protection
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only admins can delete transfers",
+      });
+    }
 
-    if (!deleted) {
+    session.startTransaction();
+
+    const transfer = await Transfer.findById(id).session(session);
+
+    if (!transfer) {
+      await session.abortTransaction();
+
       return res.status(404).json({
         success: false,
         message: "Transfer not found",
       });
     }
 
+    // Delete all items belonging to this transfer
+    await TransferItem.deleteMany(
+      { transferId: transfer._id },
+      { session }
+    );
+
+    // Delete all movement records belonging to this transfer
+    await InventoryMovement.deleteMany(
+      {
+        referenceType: "Transfer",
+        referenceId: transfer._id,
+      },
+      { session }
+    );
+
+    // Delete the transfer itself
+    await Transfer.deleteOne(
+      { _id: transfer._id },
+      { session }
+    );
+
+    await session.commitTransaction();
+
     return res.status(200).json({
       success: true,
       message: "Transfer deleted successfully",
-      data: deleted,
+      data: {
+        transferId: transfer._id,
+        transferNo: transfer.transferNo,
+      },
     });
   } catch (error) {
+    await session.abortTransaction();
+
     console.error("Error deleting transfer:", error);
+
     return res.status(500).json({
       success: false,
       message: "Server Error",
       error: error.message,
     });
+  } finally {
+    session.endSession();
   }
 };
