@@ -681,6 +681,11 @@ button:disabled {
   box-shadow: none;
 }
 
+
+/* delete button */
+.danger-action{
+  background: var(--red);
+}
 .table-wrap {
   overflow-x: auto;
 }

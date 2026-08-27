@@ -10,42 +10,128 @@ export function StockView({
   const [stockFilter, setStockFilter] = useState("IN");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const transferCount = movements.filter((movement) =>
-    movement.movementType?.startsWith("TRANSFER"),
-  ).length;
+  /*
+   * GROUP MOVEMENTS BY TRANSFER
+   *
+   * Example:
+   *
+   * Transfer TR-001
+   *   Product A - 2 PCS
+   *   Product B - 5 PCS
+   *   Product C - 10 PCS
+   *
+   * will become ONE transfer object.
+   */
+  const groupedTransfers = Object.values(
+    movements.reduce((groups, movement) => {
+      /*
+       * transferNo should normally be the same for all
+       * products belonging to one transfer.
+       *
+       * movementNo is used as fallback in case transferNo
+       * does not exist.
+       */
+      const key =
+        movement.transferNo ||
+        `${movement.movementDate}-${movement.shopCode}-${movement.relatedShopCode}`;
 
-  // Filter by Stock In / Stock Out
-  const filteredByType = movements.filter((movement) => {
+      if (!groups[key]) {
+        groups[key] = {
+          transferNo: movement.transferNo || "",
+          movementDate: movement.movementDate,
+
+          movementType: movement.movementType,
+
+          shopCode: movement.shopCode,
+          shopName: movement.shopName,
+
+          relatedShopCode: movement.relatedShopCode,
+          relatedShopName: movement.relatedShopName,
+
+          items: [],
+        };
+      }
+
+      groups[key].items.push(movement);
+
+      return groups;
+    }, {}),
+  );
+
+  /*
+   * Count UNIQUE transfers instead of individual movement records.
+   */
+  const transferCount = groupedTransfers.length;
+
+  /*
+   * Filter by Stock In / Stock Out
+   */
+  const filteredByType = groupedTransfers.filter((transfer) => {
     if (stockFilter === "IN") {
-      return movement.movementType === "TRANSFER_IN";
+      return transfer.movementType === "TRANSFER_IN";
     }
 
     if (stockFilter === "OUT") {
-      return movement.movementType === "TRANSFER_OUT";
+      return transfer.movementType === "TRANSFER_OUT";
     }
 
     return true;
   });
 
-  // Search
-  const filteredMovements = filteredByType.filter((movement) => {
+  /*
+   * Search inside the GROUPED transfer.
+   *
+   * This means searching for any product will return
+   * the whole transfer.
+   */
+  const filteredTransfers = filteredByType.filter((transfer) => {
     const search = searchTerm.trim().toLowerCase();
 
     if (!search) return true;
 
+    const transferNo = transfer.transferNo?.toLowerCase() || "";
+
+    const movementType = transfer.movementType?.toLowerCase() || "";
+
+    const shopCode = transfer.shopCode?.toLowerCase() || "";
+
+    const shopName = transfer.shopName?.toLowerCase() || "";
+
+    const relatedShopCode =
+      transfer.relatedShopCode?.toLowerCase() || "";
+
+    const relatedShopName =
+      transfer.relatedShopName?.toLowerCase() || "";
+
+    const hasMatchingItem = transfer.items?.some((movement) => {
+      const itemCode = movement.itemCode?.toLowerCase() || "";
+
+      const product = movement.product?.toLowerCase() || "";
+
+      const movementNo = movement.movementNo?.toLowerCase() || "";
+
+      return (
+        itemCode.includes(search) ||
+        product.includes(search) ||
+        movementNo.includes(search)
+      );
+    });
+
     return (
-      movement.transferNo?.toLowerCase().includes(search) ||
-      movement.movementNo?.toLowerCase().includes(search) ||
-      movement.itemCode?.toLowerCase().includes(search) ||
-      movement.product?.toLowerCase().includes(search) ||
-      movement.relatedShopCode?.toLowerCase().includes(search) ||
-      movement.relatedShopName?.toLowerCase().includes(search) ||
-      movement.shopCode?.toLowerCase().includes(search) ||
-      movement.shopName?.toLowerCase().includes(search)
+      transferNo.includes(search) ||
+      movementType.includes(search) ||
+      shopCode.includes(search) ||
+      shopName.includes(search) ||
+      relatedShopCode.includes(search) ||
+      relatedShopName.includes(search) ||
+      hasMatchingItem
     );
   });
 
-  const recentMovements = filteredMovements.slice(0, 20);
+  /*
+   * Show first 20 TRANSFERS, not first 20 movement records.
+   */
+  const recentTransfers = filteredTransfers.slice(0, 20);
 
   return (
     <div className="stock-page">
@@ -66,7 +152,9 @@ export function StockView({
         <button
           type="button"
           className={
-            stockFilter === "IN" ? "primary-action" : "secondary-action"
+            stockFilter === "IN"
+              ? "primary-action"
+              : "secondary-action"
           }
           onClick={() => setStockFilter("IN")}
         >
@@ -78,7 +166,9 @@ export function StockView({
         <button
           type="button"
           className={
-            stockFilter === "OUT" ? "primary-action" : "secondary-action"
+            stockFilter === "OUT"
+              ? "primary-action"
+              : "secondary-action"
           }
           onClick={() => setStockFilter("OUT")}
         >
@@ -99,6 +189,8 @@ export function StockView({
 
         {/* SEARCH */}
         <div className="stock-search">
+          <Search size={17} />
+
           <input
             type="text"
             value={searchTerm}
@@ -122,51 +214,64 @@ export function StockView({
       <section className="stock-table-panel">
         <div className="section-toolbar">
           <div>
-            <h3>{stockFilter === "IN" ? "Stock In" : "Stock Out"}</h3>
+            <h3>
+              {stockFilter === "IN" ? "Stock In" : "Stock Out"}
+            </h3>
 
             <span>
               {searchTerm
-                ? `Showing results for "${searchTerm}"`
-                : stockFilter === "IN"
-                  ? "Showing transfer-in stock records."
-                  : "Showing transfer-out stock records."}
+                ? `Showing ${recentTransfers.length} matching transfers`
+                : `Showing ${recentTransfers.length} of ${filteredTransfers.length} transfers`}
             </span>
           </div>
 
           {searchTerm && (
             <strong>
-              {filteredMovements.length} result
-              {filteredMovements.length !== 1 ? "s" : ""}
+              {filteredTransfers.length} transfer
+              {filteredTransfers.length !== 1 ? "s" : ""}
             </strong>
           )}
         </div>
 
         <div className="table-wrap">
           <table>
-            <thead>
+            <thead className="table-head">
               <tr>
                 <th>Date</th>
                 <th>Type</th>
-                <th>Item</th>
-                <th>Transfered {stockFilter === "OUT" ? "From" : "In TO"}</th>
-                <th>Transfered {stockFilter === "IN" ? "From" : "TO"}</th>
-                <th>Qty</th>
-                <th>Unit</th>
+                <th>Items</th>
+                <th>
+                  Transfered{" "}
+                  {stockFilter === "OUT" ? "From" : "In TO"}
+                </th>
+                <th>
+                  Transfered{" "}
+                  {stockFilter === "IN" ? "From" : "TO"}
+                </th>
               </tr>
             </thead>
 
             <tbody>
-              {recentMovements.map((movement) => (
-                <tr key={movement.movementNo}>
-
-
+              {recentTransfers.map((transfer) => (
+                <tr
+                className="clickable-row"
+                  key={
+                    transfer.transferNo ||
+                    `${transfer.movementDate}-${transfer.shopCode}-${transfer.relatedShopCode}`
+                  }
+                >
+                  {/* DATE / TIME */}
                   <td>
                     <strong>
-                      {new Date(movement.movementDate).toLocaleDateString()}
+                      {new Date(
+                        transfer.movementDate,
+                      ).toLocaleDateString()}
                     </strong>
 
                     <span>
-                      {new Date(movement.movementDate).toLocaleTimeString([], {
+                      {new Date(
+                        transfer.movementDate,
+                      ).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                         second: "2-digit",
@@ -174,39 +279,76 @@ export function StockView({
                     </span>
                   </td>
 
-                  <td>{movement.movementType}</td>
-
+                  {/* TYPE */}
                   <td>
-                    <strong>{movement.itemCode || "-"}</strong>
+                    <strong>
+                      {transfer.movementType || "-"}
+                    </strong>
 
-                    <span>{movement.product || ""}</span>
+                    {transfer.transferNo && (
+                      <span>{transfer.transferNo}</span>
+                    )}
                   </td>
 
+                  {/* ALL ITEMS OF THIS TRANSFER */}
                   <td>
-                    <strong>{movement.shopCode || "-"}</strong>
+                    {transfer.items?.length ? (
+                      transfer.items.map((movement) => (
+                        <div
+                          className="item-line"
+                          key={movement.movementNo}
+                        >
+                          <strong>
+                            {movement.itemCode || "-"}{" "}
+                            {movement.product || ""}
+                          </strong>
 
-                    <span>{movement.shopName || ""}</span>
+                          <span>
+                            {Number(
+                              movement.quantity || 0,
+                            ).toFixed(3)}{" "}
+                            {movement.unit || ""}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      "-"
+                    )}
                   </td>
-                  
+
+                  {/* SOURCE SHOP */}
                   <td>
-                    <strong>{movement.relatedShopCode || "-"}</strong>
+                    <strong>
+                      {transfer.shopCode || "-"}
+                    </strong>
 
-                    <span>{movement.relatedShopName || ""}</span>
+                    <span>
+                      {transfer.shopName || ""}
+                    </span>
                   </td>
 
-                  <td>{Number(movement.quantity || 0).toFixed(3)}</td>
+                  {/* DESTINATION SHOP */}
+                  <td>
+                    <strong>
+                      {transfer.relatedShopCode || "-"}
+                    </strong>
 
-                  <td>{movement.unit || "-"}</td>
+                    <span>
+                      {transfer.relatedShopName || ""}
+                    </span>
+                  </td>
                 </tr>
               ))}
 
-              {!recentMovements.length && (
+              {!recentTransfers.length && (
                 <tr>
-                  <td colSpan="7" className="empty-cell">
+                  <td colSpan="5" className="empty-cell">
                     {searchTerm
                       ? `No transfers found for "${searchTerm}".`
                       : `No ${
-                          stockFilter === "IN" ? "stock in" : "stock out"
+                          stockFilter === "IN"
+                            ? "stock in"
+                            : "stock out"
                         } records found.`}
                   </td>
                 </tr>

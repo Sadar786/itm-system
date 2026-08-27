@@ -89,8 +89,8 @@ export function TransfersView({
 
       <div className="table-wrap">
         <table>
-          <thead>
-            <tr className="table-head">
+          <thead className="table-head">
+            <tr >
               <th>Date</th>
               <th>Items</th>
               <th>From</th>
