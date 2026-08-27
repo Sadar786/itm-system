@@ -135,17 +135,34 @@ export function StockView({
 
   return (
     <div className="stock-page">
-      <div className="summary-grid">
-        <article className="summary-card">
-          <span>Transfers</span>
-          <strong>{transferCount}</strong>
-        </article>
+    <div className="summary-grid">
+  <article className="summary-card">
+    <span>Total Transfers</span>
+    <strong>{groupedTransfers.length}</strong>
+  </article>
 
-        <article className="summary-card">
-          <span>Movement Records</span>
-          <strong>{movements.length}</strong>
-        </article>
-      </div>
+  <article className="summary-card">
+    <span>Transfers In</span>
+    <strong>
+      {
+        groupedTransfers.filter(
+          (transfer) => transfer.movementType === "TRANSFER_IN"
+        ).length
+      }
+    </strong>
+  </article>
+
+  <article className="summary-card">
+    <span>Transfers Out</span>
+    <strong>
+      {
+        groupedTransfers.filter(
+          (transfer) => transfer.movementType === "TRANSFER_OUT"
+        ).length
+      }
+    </strong>
+  </article>
+</div>
 
       <div className="stock-actions">
         {/* STOCK IN */}
