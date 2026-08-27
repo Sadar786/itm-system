@@ -148,7 +148,7 @@ export function StockView({
                 <th>Date</th>
                 <th>Type</th>
                 <th>Item</th>
-                <th>Transfered {stockFilter === "OUT" ? "From" : "TO"}</th>
+                <th>Transfered {stockFilter === "OUT" ? "From" : "In TO"}</th>
                 <th>Transfered {stockFilter === "IN" ? "From" : "TO"}</th>
                 <th>Qty</th>
                 <th>Unit</th>
@@ -158,6 +158,8 @@ export function StockView({
             <tbody>
               {recentMovements.map((movement) => (
                 <tr key={movement.movementNo}>
+
+
                   <td>
                     <strong>
                       {new Date(movement.movementDate).toLocaleDateString()}

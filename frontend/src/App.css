@@ -684,6 +684,12 @@ button:disabled {
 .table-wrap {
   overflow-x: auto;
 }
+.table-head {
+  border: 0.15rem solid #475467;
+  font-size: large;
+  font-weight: bolder;
+  border-radius: 0.5rem;
+}
 
 .table-footer {
   display: flex;
@@ -724,8 +730,16 @@ tbody tr:hover {
   background: #f8fafc;
 }
 
+.table-head {
+  border: 0.11rem solid #344054;
+  font-size: large;
+  font-weight: bolder;
+  border-radius: 0.5rem;
+}
+
 tbody tr.clickable-row {
   cursor: pointer;
+  border: 0.1rem solid #D0D5DD;
 }
 
 tbody tr.row-warning {
@@ -1115,19 +1129,19 @@ tr.row-highlight td {
   }
 
   @media (max-width: 560px) {
-  .date-grid,
-  .form-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-    width: 100%;
-  }
+    .date-grid,
+    .form-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+      width: 100%;
+    }
 
-  .date-grid > *,
-  .form-grid > * {
-    min-width: 0;
-    width: 100%;
+    .date-grid > *,
+    .form-grid > * {
+      min-width: 0;
+      width: 100%;
+    }
   }
-}
 
   .workspace-header {
     align-items: flex-start;
@@ -1577,7 +1591,7 @@ tr.row-highlight td {
 
 .sidebar .date-grid label {
   display: block;
-  font-size:medium;
+  font-size: medium;
   min-width: 0;
   width: 100%;
   max-width: 100%;
@@ -1590,7 +1604,6 @@ tr.row-highlight td {
   max-width: 100%;
   box-sizing: border-box;
 }
-
 
 /* =========================================
    TRANSFER DETAIL ITEM SEARCH
@@ -1676,7 +1689,6 @@ tr.row-highlight td {
   }
 }
 
-
 /* =========================================
    STOCK SEARCH
 ========================================= */
@@ -1737,8 +1749,6 @@ tr.row-highlight td {
   background: #f1f3f5;
   color: #17202a;
 }
-
-
 
 /* =========================================
    TRANSFER LIST SEARCH
