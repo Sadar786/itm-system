@@ -241,7 +241,7 @@ const seedTransfers = async ({ pairs, admin, movementIndexStart }) => {
       fromShopId: from._id,
       toShopId: to._id,
       transferDate,
-      status: "posted",
+      status: "in_transit",
       remarks: "Seed transfer",
       createdBy: admin._id,
     });

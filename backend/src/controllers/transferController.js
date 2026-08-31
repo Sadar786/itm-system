@@ -443,6 +443,130 @@ export const updateTransfer = async (req, res) => {
   }
 };
 
+// mark tranfer deliverd 
+export const markTransferDelivered = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid transfer id",
+      });
+    }
+
+    const transfer = await Transfer.findById(id);
+
+    if (!transfer) {
+      return res.status(404).json({
+        success: false,
+        message: "Transfer not found",
+      });
+    }
+
+    // Only the receiver branch can mark it delivered
+    if (req.user.shopId?.toString() !== transfer.toShopId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the receiving branch can mark this transfer as delivered",
+      });
+    }
+
+    // Can only deliver an in-transit transfer
+    if (transfer.status !== "in_transit") {
+      return res.status(400).json({
+        success: false,
+        message: `Transfer is already ${transfer.status}`,
+      });
+    }
+
+    transfer.status = "delivered";
+
+    await transfer.save();
+
+    const updated = await Transfer.findById(transfer._id)
+      .populate("fromShopId", "name code")
+      .populate("toShopId", "name code")
+      .populate("createdBy", "name email");
+
+    return res.status(200).json({
+      success: true,
+      message: "Transfer marked as delivered",
+      data: updated,
+    });
+  } catch (error) {
+    console.error("Error marking transfer delivered:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};
+
+// cencel transfer
+export const cancelTransfer = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid transfer id",
+      });
+    }
+
+    const transfer = await Transfer.findById(id);
+
+    if (!transfer) {
+      return res.status(404).json({
+        success: false,
+        message: "Transfer not found",
+      });
+    }
+
+    // Only the receiving branch can cancel
+    if (req.user.shopId?.toString() !== transfer.toShopId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the receiving branch can cancel this transfer",
+      });
+    }
+
+    // Can only cancel an in-transit transfer
+    if (transfer.status !== "in_transit") {
+      return res.status(400).json({
+        success: false,
+        message: `Transfer is already ${transfer.status}`,
+      });
+    }
+
+    transfer.status = "cancelled";
+
+    await transfer.save();
+
+    const updated = await Transfer.findById(transfer._id)
+      .populate("fromShopId", "name code")
+      .populate("toShopId", "name code")
+      .populate("createdBy", "name email");
+
+    return res.status(200).json({
+      success: true,
+      message: "Transfer cancelled",
+      data: updated,
+    });
+  } catch (error) {
+    console.error("Error cancelling transfer:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};
+
 /**
  * DELETE TRANSFER
  * DELETE /api/transfers/:id

@@ -7,6 +7,8 @@ import {
   getAllTransfers,
   getTransferById,
   deleteTransfer,
+  markTransferDelivered,
+  cancelTransfer,
 } from "../controllers/transferController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
@@ -33,6 +35,22 @@ router.get(
   protect,
   authorizeRoles("admin", "shop_keeper"),
   getTransferById
+);
+
+// Receiver actions
+router.patch(
+  "/:id/deliver",
+  protect,
+  authorizeRoles("shop_keeper"),
+  markTransferDelivered
+);
+
+//cecel action
+router.patch(
+  "/:id/cancel",
+  protect,
+  authorizeRoles("shop_keeper"),
+  cancelTransfer
 );
 
 

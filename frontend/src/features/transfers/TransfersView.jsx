@@ -7,16 +7,39 @@ export function TransfersView({
   onSelectTransfer,
   onDeleteTransfer,
   transferPagination,
+  onMarkDelivered,
+  onCancelTransfer,
   transfers,
-  user
+  user,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
   const isAdmin = user?.role === "admin";
+
   const hasMore =
     transferPagination.page < transferPagination.pages &&
     transfers.length < transferPagination.total;
 
+  const isReceiver = (transfer) => {
+    const userShopId = user?.shopId?._id || user?.shopId;
+
+    const receiverShopId = transfer?.toShopId?._id || transfer?.toShopId;
+
+    return (
+      userShopId &&
+      receiverShopId &&
+      userShopId.toString() === receiverShopId.toString()
+    );
+  };
+
   const filteredTransfers = transfers.filter((transfer) => {
+    // STATUS FILTER
+    if (statusFilter !== "all" && transfer.status !== statusFilter) {
+      return false;
+    }
+
+    // SEARCH FILTER
     const search = searchTerm.trim().toLowerCase();
 
     if (!search) return true;
@@ -52,6 +75,22 @@ export function TransfersView({
     );
   });
 
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case "in_transit":
+        return "In Transit";
+
+      case "delivered":
+        return "Delivered";
+
+      case "cancelled":
+        return "Cancelled";
+
+      default:
+        return status || "-";
+    }
+  };
+
   return (
     <section className="history-panel">
       <div className="section-toolbar">
@@ -59,38 +98,76 @@ export function TransfersView({
           <h3>Recent Transfers</h3>
 
           <span>
-            {searchTerm
+            {searchTerm || statusFilter !== "all"
               ? `Showing ${filteredTransfers.length} matching transfers`
               : `Showing ${transfers.length} of ${transferPagination.total} records`}
           </span>
         </div>
 
-        {/* SEARCH */}
-        <div className="transfer-list-search">
-          <Search size={17} />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search transfers..."
-          />
-
-          {searchTerm && (
+        {/* FILTERS + SEARCH */}
+        <div className="transfer-toolbar-right">
+          <div className="transfer-status-filters">
             <button
               type="button"
-              onClick={() => setSearchTerm("")}
-              title="Clear search"
+              className={statusFilter === "all" ? "active" : ""}
+              onClick={() => setStatusFilter("all")}
             >
-              <X size={15} />
+              All
             </button>
-          )}
+
+            <button
+              type="button"
+              className={statusFilter === "in_transit" ? "active" : ""}
+              onClick={() => setStatusFilter("in_transit")}
+            >
+              In Transit
+            </button>
+
+            <button
+              type="button"
+              className={statusFilter === "delivered" ? "active" : ""}
+              onClick={() => setStatusFilter("delivered")}
+            >
+              Delivered
+            </button>
+
+            <button
+              type="button"
+              className={statusFilter === "cancelled" ? "active" : ""}
+              onClick={() => setStatusFilter("cancelled")}
+            >
+              Cancelled
+            </button>
+          </div>
+
+          {/* SEARCH */}
+          <div className="transfer-list-search">
+            <Search size={17} />
+
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search transfers..."
+            />
+
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                title="Clear search"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="table-wrap">
         <table>
           <thead className="table-head">
-            <tr >
+            <tr>
               <th>Date</th>
               <th>Items</th>
               <th>From</th>
@@ -110,11 +187,15 @@ export function TransfersView({
               >
                 <td>
                   <strong>
-                    {new Date(transfer.transferDate).toLocaleDateString()}
+                    {new Date(
+                      transfer.transferDate,
+                    ).toLocaleDateString()}
                   </strong>
 
                   <span>
-                    {new Date(transfer.transferDate).toLocaleTimeString([], {
+                    {new Date(
+                      transfer.transferDate,
+                    ).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                       second: "2-digit",
@@ -133,7 +214,9 @@ export function TransfersView({
 
                           <span>
                             {Number(item.quantity || 0).toFixed(3)}{" "}
-                            {item.unitId?.shortName || item.unitId?.name || ""}
+                            {item.unitId?.shortName ||
+                              item.unitId?.name ||
+                              ""}
                           </span>
                         </div>
                       ))
@@ -152,15 +235,75 @@ export function TransfersView({
                   <span>{transfer.toShopId?.name || ""}</span>
                 </td>
 
-                <td>{transfer.status || "-"}</td>
+                <td>
+                  <span
+                    className={`transfer-status ${transfer.status}`}
+                  >
+                    {getStatusLabel(transfer.status)}
+                  </span>
+
+                  {transfer.status === "in_transit" &&
+                    isReceiver(transfer) && (
+                      <div className="transfer-actions">
+                        <button
+                          type="button"
+                          className="success-action"
+                          disabled={
+                            busyKey ===
+                            `deliver-transfer-${transfer._id}`
+                          }
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onMarkDelivered(transfer);
+                          }}
+                        >
+                          {busyKey ===
+                          `deliver-transfer-${transfer._id}`
+                            ? "Updating..."
+                            : "Mark Delivered"}
+                        </button>
+
+                        <button
+                          type="button"
+                          className="danger-action"
+                          disabled={
+                            busyKey ===
+                            `cancel-transfer-${transfer._id}`
+                          }
+                          onClick={(event) => {
+                            event.stopPropagation();
+
+                            const confirmed = window.confirm(
+                              `Are you sure you want to cancel transfer ${
+                                transfer.transferNo || ""
+                              }?`,
+                            );
+
+                            if (confirmed) {
+                              onCancelTransfer(transfer);
+                            }
+                          }}
+                        >
+                          {busyKey ===
+                          `cancel-transfer-${transfer._id}`
+                            ? "Cancelling..."
+                            : "Cancel"}
+                        </button>
+                      </div>
+                    )}
+                </td>
 
                 <td>{transfer.remarks || "-"}</td>
+
                 {isAdmin && (
                   <td>
                     <button
                       type="button"
                       className="danger-action"
-                      disabled={busyKey === `delete-transfer-${transfer._id}`}
+                      disabled={
+                        busyKey ===
+                        `delete-transfer-${transfer._id}`
+                      }
                       onClick={(event) => {
                         event.stopPropagation();
 
@@ -175,7 +318,8 @@ export function TransfersView({
                         }
                       }}
                     >
-                      {busyKey === `delete-transfer-${transfer._id}`
+                      {busyKey ===
+                      `delete-transfer-${transfer._id}`
                         ? "Deleting..."
                         : "Delete"}
                     </button>
@@ -186,9 +330,12 @@ export function TransfersView({
 
             {!filteredTransfers.length && (
               <tr>
-                <td colSpan={isAdmin ? 7 : 6} className="empty-cell">
-                  {searchTerm
-                    ? `No transfers found for "${searchTerm}".`
+                <td
+                  colSpan={isAdmin ? 7 : 6}
+                  className="empty-cell"
+                >
+                  {searchTerm || statusFilter !== "all"
+                    ? "No transfers found."
                     : "No transfers loaded."}
                 </td>
               </tr>
@@ -197,7 +344,7 @@ export function TransfersView({
         </table>
       </div>
 
-      {hasMore && !searchTerm && (
+      {hasMore && !searchTerm && statusFilter === "all" && (
         <div className="table-footer">
           <button
             type="button"

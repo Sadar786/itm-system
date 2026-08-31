@@ -44,7 +44,6 @@ export const createTransferService = async ({
           transferDate,
           remarks,
           createdBy,
-          status: "posted",
         },
       ],
       { session }

@@ -1829,3 +1829,77 @@ tr.row-highlight td {
     width: 100%;
   }
 }
+
+/* Transfer Status */
+.transfer-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* In Transit */
+.transfer-status.in_transit {
+  color: #8a5a00;
+  background: #fff3cd;
+  border: 1px solid #ffe69c;
+}
+
+/* Delivered */
+.transfer-status.delivered {
+  color: #146c43;
+  background: #d1e7dd;
+  border: 1px solid #a3cfbb;
+}
+
+/* Cancelled */
+.transfer-status.cancelled {
+  color: #b02a37;
+  background: #f8d7da;
+  border: 1px solid #f1aeb5;
+}
+
+.transfer-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.transfer-status-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.transfer-status-filters button {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #4b5563;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.transfer-status-filters button:hover {
+  background: #f3f4f6;
+}
+
+.transfer-status-filters button.active {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.transfer-list-search {
+  display: flex;
+  align-items: center;
+}
+

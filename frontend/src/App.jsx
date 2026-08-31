@@ -33,6 +33,8 @@ import {
   getTransferDestinationShops,
   getTransfers,
   deleteTransfer,
+  markTransferDelivered,
+  cancelTransfer,
   getUnits,
   importProducts,
   login,
@@ -234,6 +236,65 @@ function App() {
     }
   };
 
+  const handleMarkDelivered = async (transfer) => {
+    if (!token || !transfer?._id) return;
+
+    setBusyKey(`deliver-transfer-${transfer._id}`);
+    setError("");
+
+    try {
+      const response = await markTransferDelivered({
+        token,
+        transferId: transfer._id,
+      });
+
+      setTransfers((current) =>
+        current.map((item) =>
+          item._id === transfer._id
+            ? {
+                ...item,
+                ...response.data,
+                status: "delivered",
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      setError(error.message || "Failed to mark transfer as delivered");
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  const handleCancelTransfer = async (transfer) => {
+    if (!token || !transfer?._id) return;
+
+    setBusyKey(`cancel-transfer-${transfer._id}`);
+    setError("");
+
+    try {
+      const response = await cancelTransfer({
+        token,
+        transferId: transfer._id,
+      });
+
+      setTransfers((current) =>
+        current.map((item) =>
+          item._id === transfer._id
+            ? {
+                ...item,
+                ...response.data,
+                status: "cancelled",
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      setError(error.message || "Failed to cancel transfer");
+    } finally {
+      setBusyKey("");
+    }
+  };
   const filteredAddProducts = useMemo(() => {
     const needle = addProductSearch.trim().toLowerCase();
     if (!needle) return products;
@@ -1266,9 +1327,8 @@ function App() {
   };
 
   const handleSelectTransfer = (transfer) => {
-  setSelectedTransferDetail(transfer);
-};
-
+    setSelectedTransferDetail(transfer);
+  };
 
   return (
     <main className="app-shell">
@@ -1363,6 +1423,8 @@ function App() {
             onLoadMoreTransfers={handleLoadMoreTransfers}
             onSelectTransfer={handleSelectTransfer}
             onDeleteTransfer={handleDeleteTransfer}
+            onMarkDelivered={handleMarkDelivered}
+            onCancelTransfer={handleCancelTransfer}
             transferPagination={transferPagination}
             transfers={transfers}
             user={user}

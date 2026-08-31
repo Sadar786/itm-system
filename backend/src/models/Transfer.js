@@ -32,8 +32,9 @@ const transferSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["draft", "posted", "cancelled"],
-      default: "posted",
+     // enum: ["draft", "posted", "cancelled"],
+      enum: ["in_transit", "delivered", "cancelled"],
+      default: "in_transit",
       index: true,
     },
 

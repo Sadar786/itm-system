@@ -211,6 +211,16 @@ export const deleteTransfer = ({ token, transferId }) =>
     method: "DELETE",
   })
 
+  export const markTransferDelivered = ({ token, transferId }) =>
+  apiJson(`/transfers/${transferId}/deliver`, token, {
+    method: "PATCH",
+  });
+
+export const cancelTransfer = ({ token, transferId }) =>
+  apiJson(`/transfers/${transferId}/cancel`, token, {
+    method: "PATCH",
+  });
+
 export const getMovements = ({ token, shopId, startDate, endDate }) => {
   const params = new URLSearchParams()
   if (shopId?.trim()) {
