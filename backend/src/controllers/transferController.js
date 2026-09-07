@@ -39,6 +39,14 @@ const isShopKeeperAllowedForTransfer = (req, transfer) => {
  * CREATE TRANSFER
  * POST /api/transfers
  */
+
+console.log("EMAIL_USER loaded:", Boolean(process.env.EMAIL_USER));
+console.log(
+  "EMAIL_APP_PASSWORD loaded:",
+  Boolean(process.env.EMAIL_APP_PASSWORD)
+);
+
+
 export const createTransfer = async (req, res) => {
   try {
     const {

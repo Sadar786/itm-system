@@ -1,11 +1,20 @@
 import { useState, useMemo } from "react";
-import { FileSpreadsheet, Pencil, Plus, Trash2, Download } from "lucide-react";
+import {
+  FileSpreadsheet,
+  Pencil,
+  Plus,
+  Trash2,
+  Download,
+  MoreVertical,
+} from "lucide-react";
 import { downloadProductsExcel } from "../../services/api.js";
 
 export function AdminView({
   isLoggedIn,
   isShopkeeper,
   user,
+  users,
+  busyKey,
   products,
   shops,
   units,
@@ -13,6 +22,8 @@ export function AdminView({
   onImportProducts,
   onCreateShop,
   onCreateUnit,
+  onUserUpdate,
+  onUserDelete,
   onProductDelete,
   onProductEdit,
   onShopDelete,
@@ -23,6 +34,9 @@ export function AdminView({
   const [activeSection, setActiveSection] = useState("branches");
   const [branchSearch, setBranchSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const [userSearch, setUserSearch] = useState("");
+  const [openUserMenu, setOpenUserMenu] = useState(null);
+  const [selectedUserBranch, setSelectedUserBranch] = useState({});
   const canCreateShop = !isShopkeeper || !user?.shopId;
   const showProductSection = !isShopkeeper;
 
@@ -40,6 +54,11 @@ export function AdminView({
     {
       id: "units",
       label: "Units",
+      visible: !isShopkeeper,
+    },
+    {
+      id: "users",
+      label: "Users",
       visible: !isShopkeeper,
     },
   ];
@@ -81,6 +100,25 @@ export function AdminView({
     );
   }, [products, productSearch]);
 
+  const filteredUsers = useMemo(() => {
+    const search = userSearch.toLowerCase().trim();
+
+    if (!search) return users;
+
+    return users.filter((item) =>
+      [
+        item.name,
+        item.email,
+        item.role,
+        item.isActive ? "active" : "inactive",
+        shops.find((shop) => String(shop._id) === String(item.shopId))?.name,
+        shops.find((shop) => String(shop._id) === String(item.shopId))?.code,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [users, shops, userSearch]);
+
   const handleDownloadProducts = async () => {
     try {
       await downloadProductsExcel({
@@ -90,6 +128,44 @@ export function AdminView({
       console.error("Product download failed:", error);
       alert(error.message || "Failed to download products.");
     }
+  };
+
+  const getUserBranch = (item) => {
+    if (!item?.shopId) return null;
+
+    const shopId =
+      typeof item.shopId === "object" ? item.shopId._id : item.shopId;
+
+    return shops.find((shop) => String(shop._id) === String(shopId));
+  };
+
+  const handleAssignBranch = (item) => {
+    const branchId = selectedUserBranch[item._id];
+
+    if (!branchId) return;
+
+    onUserUpdate(item._id, {
+      shopId: branchId,
+    });
+
+    setOpenUserMenu(null);
+  };
+
+  const handleRemoveBranch = (item) => {
+    if (!window.confirm(`Remove branch from ${item.name}?`)) {
+      return;
+    }
+
+    onUserUpdate(item._id, {
+      shopId: null,
+    });
+
+    setSelectedUserBranch((current) => ({
+      ...current,
+      [item._id]: "",
+    }));
+
+    setOpenUserMenu(null);
   };
 
   return (
@@ -459,6 +535,248 @@ export function AdminView({
                   <tr>
                     <td colSpan="5" className="empty-cell">
                       No units loaded.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* =========================
+    USERS
+========================= */}
+      {activeSection === "users" && !isShopkeeper && (
+        <section className="panel admin-panel">
+          <div
+            className="panel-title"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "15px",
+              flexWrap: "wrap",
+            }}
+          >
+            <h2 style={{ color: "black", margin: 0 }}>User management</h2>
+
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              style={{
+                width: "260px",
+                padding: "9px 12px",
+                border: "1px solid #d1d5db",
+                borderRadius: "8px",
+                outline: "none",
+              }}
+            />
+          </div>
+
+          <div className="table-wrap admin-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Branch</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredUsers.map((item) => {
+                  const branch = getUserBranch(item);
+                  const isMenuOpen = openUserMenu === item._id;
+
+                  const currentBranchId =
+                    typeof item.shopId === "object"
+                      ? item.shopId?._id
+                      : item.shopId;
+
+                  return (
+                    <tr key={item._id}>
+                      <td>{item.name || "-"}</td>
+
+                      <td>{item.email || "-"}</td>
+
+                      <td>
+                        {item.role === "shop_keeper" ? "Shop Keeper" : "Admin"}
+                      </td>
+
+                      <td>
+                        {branch ? (
+                          <span>
+                            {branch.name}
+                            {branch.code ? ` (${branch.code})` : ""}
+                          </span>
+                        ) : (
+                          <span style={{ color: "#9ca3af" }}>
+                            No branch assigned
+                          </span>
+                        )}
+                      </td>
+
+                      <td>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: item.isActive ? "#15803d" : "#b91c1c",
+                          }}
+                        >
+                          {item.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+
+                      <td
+                        className="table-actions-cell"
+                        style={{
+                          position: "relative",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="icon-button"
+                          title="User actions"
+                          onClick={() =>
+                            setOpenUserMenu(isMenuOpen ? null : item._id)
+                          }
+                          disabled={Boolean(busyKey)}
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+
+                        {isMenuOpen && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              right: "8px",
+                              top: "42px",
+                              zIndex: 20,
+                              width: "230px",
+                              background: "#ffffff",
+                              border: "1px solid #e5e7eb",
+                              borderRadius: "8px",
+                              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                              padding: "12px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                color: "#6b7280",
+                                marginBottom: "6px",
+                              }}
+                            >
+                              Assign branch
+                            </div>
+
+                            <select
+                              value={
+                                selectedUserBranch[item._id] ??
+                                currentBranchId ??
+                                ""
+                              }
+                              onChange={(e) =>
+                                setSelectedUserBranch((current) => ({
+                                  ...current,
+                                  [item._id]: e.target.value,
+                                }))
+                              }
+                              disabled={Boolean(busyKey)}
+                              style={{
+                                width: "100%",
+                                padding: "8px 10px",
+                                border: "1px solid #d1d5db",
+                                borderRadius: "6px",
+                                marginBottom: "8px",
+                                background: "#fff",
+                              }}
+                            >
+                              <option value="">Select branch</option>
+
+                              {shops.map((shop) => (
+                                <option
+                                  key={shop._id}
+                                  value={shop._id}
+                                  disabled={!shop.isActive}
+                                >
+                                  {shop.name}
+                                  {shop.code ? ` (${shop.code})` : ""}
+                                </option>
+                              ))}
+                            </select>
+
+                            <button
+                              type="button"
+                              className="primary-action"
+                              style={{
+                                width: "100%",
+                                justifyContent: "center",
+                                marginBottom: "6px",
+                              }}
+                              disabled={
+                                Boolean(busyKey) ||
+                                !selectedUserBranch[item._id]
+                              }
+                              onClick={() => handleAssignBranch(item)}
+                            >
+                              {currentBranchId
+                                ? "Change Branch"
+                                : "Assign Branch"}
+                            </button>
+
+                            {currentBranchId ? (
+                              <button
+                                type="button"
+                                className="icon-button secondary-action"
+                                style={{
+                                  width: "100%",
+                                  justifyContent: "center",
+                                  marginBottom: "6px",
+                                }}
+                                disabled={Boolean(busyKey)}
+                                onClick={() => handleRemoveBranch(item)}
+                              >
+                                Remove Branch
+                              </button>
+                            ) : null}
+
+                            {item.isActive ? (
+                              <button
+                                type="button"
+                                className="icon-button secondary-action"
+                                style={{
+                                  width: "100%",
+                                  justifyContent: "center",
+                                }}
+                                disabled={Boolean(busyKey)}
+                                onClick={() => {
+                                  setOpenUserMenu(null);
+                                  onUserDelete(item._id);
+                                }}
+                              >
+                                <Trash2 size={15} />
+                                Deactivate User
+                              </button>
+                            ) : null}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {!filteredUsers.length && (
+                  <tr>
+                    <td colSpan="6" className="empty-cell">
+                      {userSearch ? "No users found." : "No users loaded."}
                     </td>
                   </tr>
                 )}

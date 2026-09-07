@@ -1,8 +1,12 @@
 import express from "express";
+
 import {
-  forgotPassword,
   loginUser,
   signupUser,
+  requestSignupOtp,
+  verifySignupOtp,
+  requestForgotPasswordOtp,
+  verifyForgotPasswordOtp,
   getAlUsers,
   getUserById,
   updateUser,
@@ -15,7 +19,6 @@ import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-
 router.get(
   "/test",
   protect,
@@ -27,13 +30,20 @@ router.get(
     });
   }
 );
-
 router.post("/login", loginUser);
 router.post("/signup", signupUser);
-router.post("/forgot-password", forgotPassword);
+router.post("/signup/request-otp", requestSignupOtp);
+router.post("/signup/verify-otp", verifySignupOtp);
+router.post(
+  "/forgot-password/request-otp",
+  requestForgotPasswordOtp
+);
+router.post(
+  "/forgot-password/verify-otp",
+  verifyForgotPasswordOtp
+);
 
 router.use(protect);
-
 router.get("/", authorizeRoles("admin"), getAlUsers);
 router.get("/user/:id", authorizeRoles("admin"), getUserById);
 router.put("/user/:id", authorizeRoles("admin"), updateUser);

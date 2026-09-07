@@ -61,6 +61,84 @@ export const signup = async ({ name, email, password }) => {
   return data
 }
 
+/* =====================================================
+   USER MANAGEMENT APIs
+===================================================== */
+
+export const getUsers = (token) =>
+  apiJson("/auth", token);
+
+export const updateUser = ({ token, userId, body }) =>
+  apiJson(`/auth/user/${userId}`, token, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+export const deleteUser = ({ token, userId }) =>
+  apiJson(`/auth/user/${userId}`, token, {
+    method: "DELETE",
+  });
+
+export const requestSignupOtp = async ({
+  name,
+  email,
+  password,
+}) => {
+  const response = await fetch(
+    `${API_BASE_URL}/auth/signup/request-otp`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Unable to send verification code."
+    );
+  }
+
+  return data;
+};
+
+export const verifySignupOtp = async ({ email, otp }) => {
+  const response = await fetch(
+    `${API_BASE_URL}/auth/signup/verify-otp`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        otp,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Invalid verification code."
+    );
+  }
+
+  return data;
+};
+
 export const forgotPassword = async ({ email, password }) => {
   const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
     method: 'POST',
@@ -75,6 +153,63 @@ export const forgotPassword = async ({ email, password }) => {
 
   return data
 }
+
+export const requestForgotPasswordOtp = async ({ email }) => {
+  const response = await fetch(
+    `${API_BASE_URL}/auth/forgot-password/request-otp`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Unable to send verification code."
+    );
+  }
+
+  return data;
+};
+
+export const verifyForgotPasswordOtp = async ({
+  email,
+  otp,
+  password,
+}) => {
+  const response = await fetch(
+    `${API_BASE_URL}/auth/forgot-password/verify-otp`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        otp,
+        password,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Unable to reset password."
+    );
+  }
+
+  return data;
+};
+
 
 export const getProducts = (token) => apiJson('/products?limit=500', token)
 

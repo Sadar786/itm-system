@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+
+import {
+  logout,
+  selectIsLoggedIn,
+  selectToken,
+  selectUser,
+  selectAuthError,
+  selectAuthMessage,
+} from "./features/auth/authSlice";
+
 import { Notice } from "./components/Notice";
+
 import { Sidebar } from "./components/Sidebar";
 import { ViewTabs } from "./components/ViewTabs";
 import { WorkspaceHeader } from "./components/WorkspaceHeader";
@@ -14,6 +26,9 @@ import { AdminShopModal } from "./features/admin/AdminShopModal";
 import { AdminProductModal } from "./features/admin/AdminProductModal";
 import { AdminUnitModal } from "./features/admin/AdminUnitModal";
 import {
+  getUsers,
+  updateUser,
+  deleteUser,
   addInventoryStock,
   createProduct,
   createShop,
@@ -24,7 +39,6 @@ import {
   deleteProduct,
   deleteShop,
   downloadReport,
-  forgotPassword,
   getCategories,
   getMovements,
   getProducts,
@@ -37,7 +51,6 @@ import {
   cancelTransfer,
   getUnits,
   importProducts,
-  login,
   updateProduct,
   updateShop,
   API_BASE_URL,
@@ -85,20 +98,15 @@ const getMovementDateRange = (dateFilters) => {
 };
 
 function App() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [authMode, setAuthMode] = useState("login");
-  const productImportInputRef = useRef(null);
-  const [token, setToken] = useState(
-    () => localStorage.getItem("inventoryToken") || "",
-  );
+  const dispatch = useDispatch();
+  const token = useSelector(selectToken);
+  const user = useSelector(selectUser);
+  const isLoggedIn = useSelector(selectIsLoggedIn);
+  const authMessage = useSelector(selectAuthMessage);
+  const authError = useSelector(selectAuthError);
 
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("inventoryUser");
-    return stored ? JSON.parse(stored) : null;
-  });
+  const productImportInputRef = useRef(null);
+
   const [activeView, setActiveView] = useState("stock");
   const [shopId, setShopId] = useState(user?.shopId || "");
   const [dateFilters, setDateFilters] = useState({
@@ -113,6 +121,7 @@ function App() {
   const [products, setProducts] = useState([]);
   const [shops, setShops] = useState([]);
   const [transferDestinationShops, setTransferDestinationShops] = useState([]);
+  const [users, setUsers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [units, setUnits] = useState([]);
   const [adminUnitForm, setAdminUnitForm] = useState({
@@ -168,7 +177,6 @@ function App() {
   const [activeModal, setActiveModal] = useState(null);
   const [selectedTransferDetail, setSelectedTransferDetail] = useState(null);
 
-  const isLoggedIn = Boolean(token);
   const isAdmin = user?.role === "admin";
   const isShopkeeper = user?.role === "shop_keeper";
   const canManage = isAdmin || isShopkeeper;
@@ -322,6 +330,11 @@ function App() {
     setShops(data.data || []);
   };
 
+  const loadUsers = async (authToken = token) => {
+    const data = await getUsers(authToken);
+    setUsers(data.users || []);
+  };
+
   const loadTransferDestinationShops = async (authToken = token) => {
     const data = await getTransferDestinationShops(authToken);
     setTransferDestinationShops(data.data || []);
@@ -373,33 +386,41 @@ function App() {
     setMovements(data.data || []);
   };
 
-  useEffect(() => {
-    if (!token) return;
+useEffect(() => {
+  if (!token) return;
 
-    const loadInitialData = async () => {
-      setBusyKey("initial-load");
-      setError("");
+  const loadInitialData = async () => {
+    setBusyKey("initial-load");
+    setError("");
 
-      try {
-        await Promise.all([
-          loadProducts(token),
-          loadShops(token),
-          loadTransferDestinationShops(token),
-          loadCategories(token),
-          loadUnits(token),
-          loadTransfers({ authToken: token }),
-          loadMovements({ authToken: token }),
-        ]);
-      } catch (loadError) {
-        setError(loadError.message);
-      } finally {
-        setBusyKey("");
+    try {
+      const requests = [
+        loadProducts(token),
+        loadShops(token),
+        loadTransferDestinationShops(token),
+        loadCategories(token),
+        loadUnits(token),
+        loadTransfers({ authToken: token }),
+        loadMovements({ authToken: token }),
+      ];
+
+      // Users are admin-only
+      if (isAdmin) {
+        requests.push(loadUsers(token));
       }
-    };
 
-    loadInitialData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+      await Promise.all(requests);
+    } catch (loadError) {
+      setError(loadError.message || "Failed to load dashboard data.");
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  loadInitialData();
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [token, isAdmin]);
 
   useEffect(() => {
     if (!token) return;
@@ -410,71 +431,9 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFilters, shopId, token]);
 
-  const handleLogin = async (event) => {
-    event.preventDefault();
-
-    setError("");
-    setMessage("");
-    setBusyKey("login");
-
-    try {
-      const data = await login({ email, password });
-
-      localStorage.setItem("inventoryToken", data.token);
-      localStorage.setItem("inventoryUser", JSON.stringify(data.user));
-
-      // Store login time
-      localStorage.setItem("inventoryLoginTime", Date.now().toString());
-
-      setToken(data.token);
-      setUser(data.user);
-      setShopId(data.user?.shopId || "");
-
-      setTransfer((current) => ({
-        ...current,
-        fromShopId: data.user?.shopId || "",
-      }));
-
-      setMessage("Login successful. Inventory is loading.");
-    } catch (loginError) {
-      setError(loginError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleForgotPassword = async (event) => {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-    setBusyKey("forgot");
-
-    if (!email.trim() || !password) {
-      setError("Email and new password are required.");
-      setBusyKey("");
-      return;
-    }
-
-    try {
-      await forgotPassword({ email: email.trim(), password });
-      setMessage("Password reset successful. You can now log in.");
-      setAuthMode("login");
-      setPassword("");
-      setConfirmPassword("");
-    } catch (resetError) {
-      setError(resetError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
   const handleLogout = () => {
-    localStorage.removeItem("inventoryToken");
-    localStorage.removeItem("inventoryUser");
-    localStorage.removeItem("inventoryLoginTime");
+    dispatch(logout());
 
-    setToken("");
-    setUser(null);
     setProducts([]);
     setShops([]);
     setTransfers([]);
@@ -486,10 +445,6 @@ function App() {
       pages: 1,
       limit: PAGE_SIZE,
     });
-
-    setMessage("");
-    setError("");
-    setAuthMode("login");
   };
 
   useEffect(() => {
@@ -720,6 +675,73 @@ function App() {
       resetUnitForm();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  const handleUserUpdate = async (userId, body) => {
+    if (!token || !userId) return;
+
+    setBusyKey(`user-update-${userId}`);
+    setError("");
+    setMessage("");
+
+    try {
+      const data = await updateUser({
+        token,
+        userId,
+        body,
+      });
+
+      setUsers((current) =>
+        current.map((item) =>
+          item._id === userId
+            ? {
+                ...item,
+                ...data.user,
+              }
+            : item,
+        ),
+      );
+
+      setMessage("User updated successfully.");
+    } catch (updateError) {
+      setError(updateError.message || "Failed to update user.");
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!token || !userId) return;
+
+    if (!window.confirm("Deactivate this user?")) return;
+
+    setBusyKey(`user-delete-${userId}`);
+    setError("");
+    setMessage("");
+
+    try {
+      await deleteUser({
+        token,
+        userId,
+      });
+
+      setUsers((current) =>
+        current.map((item) =>
+          item._id === userId
+            ? {
+                ...item,
+                isActive: false,
+              }
+            : item,
+        ),
+      );
+
+      setMessage("User deactivated successfully.");
+    } catch (deleteError) {
+      setError(deleteError.message || "Failed to deactivate user.");
     } finally {
       setBusyKey("");
     }
@@ -1339,7 +1361,7 @@ function App() {
         style={{ display: "none" }}
         onChange={handleImportProducts}
       />
-      <Sidebar
+      {/* <Sidebar
         authMode={authMode}
         busyKey={busyKey}
         dateFilters={dateFilters}
@@ -1350,6 +1372,7 @@ function App() {
         onEmailChange={setEmail}
         onLogin={handleLogin}
         onLogout={handleLogout}
+        onSignup={handleSignup}
         onForgotPassword={handleForgotPassword}
         onPasswordChange={setPassword}
         onConfirmPasswordChange={setConfirmPassword}
@@ -1358,6 +1381,19 @@ function App() {
         onShopIdChange={handleShopIdChange}
         password={password}
         confirmPassword={confirmPassword}
+        setDateFilters={setDateFilters}
+        shopId={shopId}
+        shops={shops}
+        user={user}
+      /> */}
+
+      {/* previosly sidebar is commented out because using old state */}
+      <Sidebar
+        busyKey={busyKey}
+        dateFilters={dateFilters}
+        isLoggedIn={isLoggedIn}
+        onRefreshInventory={handleRefreshInventory}
+        onShopIdChange={handleShopIdChange}
         setDateFilters={setDateFilters}
         shopId={shopId}
         shops={shops}
@@ -1371,8 +1407,7 @@ function App() {
           isAdmin={isAdmin}
           onChange={setActiveView}
         />
-        <Notice error={error} message={message} />
-
+        <Notice error={error || authError} message={message || authMessage} />
         {activeView === "stock" ? (
           <StockView
             isLoggedIn={isLoggedIn}
@@ -1394,9 +1429,12 @@ function App() {
             isLoggedIn={isLoggedIn}
             isShopkeeper={isShopkeeper}
             user={user}
+            users={users}
             products={products}
             shops={shops}
             units={units}
+            onUserUpdate={handleUserUpdate}
+            onUserDelete={handleDeleteUser}
             onImportProducts={openProductImport}
             onCreateUnit={openCreateUnitModal}
             onUnitEdit={(unit) => {
@@ -1430,7 +1468,6 @@ function App() {
             user={user}
           />
         )}
-
         <AddStockModal
           addStock={addStock}
           busyKey={busyKey}
@@ -1444,7 +1481,6 @@ function App() {
           products={filteredAddProducts}
           selectedProduct={selectedProduct}
         />
-
         <TransferStockModal
           busyKey={busyKey}
           destinationShops={destinationShops}
@@ -1466,7 +1502,6 @@ function App() {
           products={products}
           units={units}
         />
-
         <AdminShopModal
           busyKey={busyKey}
           isOpen={activeModal === "shop-create" || activeModal === "shop-edit"}
@@ -1477,7 +1512,6 @@ function App() {
           shopForm={adminShopForm}
           isEdit={activeModal === "shop-edit"}
         />
-
         <AdminProductModal
           busyKey={busyKey}
           categories={categories}
@@ -1492,7 +1526,6 @@ function App() {
           units={units}
           isEdit={activeModal === "product-edit"}
         />
-
         <AdminUnitModal
           busyKey={busyKey}
           isOpen={activeModal === "unit-create" || activeModal === "unit-edit"}
@@ -1504,7 +1537,6 @@ function App() {
           units={units}
           isEdit={activeModal === "unit-edit"}
         />
-
         <TransferDetailModal
           isOpen={Boolean(selectedTransferDetail)}
           onClose={() => setSelectedTransferDetail(null)}

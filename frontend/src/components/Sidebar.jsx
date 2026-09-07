@@ -6,22 +6,9 @@ import logo from "../assets/logo1.jpeg";
 export function Sidebar({
   busyKey,
   dateFilters,
-  email,
   isLoggedIn,
-  onEmailChange,
-  onLogin,
-  onLogout,
-  onPasswordChange,
-  onForgotPassword,
-  onConfirmPasswordChange,
-  onAuthModeChange,
-  authMode,
-  name,
-  onNameChange,
-  confirmPassword,
   onRefreshInventory,
   onShopIdChange,
-  password,
   setDateFilters,
   shopId,
   shops,
@@ -37,30 +24,15 @@ export function Sidebar({
             className="brand-logo"
           />
         </div>
+
         <div>
           <h1>Inventory Control</h1>
-          <p>Incoming stock, transfers, and reports</p>
+          <p>Branch stock, transfers, and reports</p>
         </div>
       </div>
 
-      <SessionPanel
-        authMode={authMode}
-        busyKey={busyKey}
-        email={email}
-        isLoggedIn={isLoggedIn}
-        name={name}
-        onNameChange={onNameChange}
-        onEmailChange={onEmailChange}
-        onLogin={onLogin}
-        onLogout={onLogout}
-        onForgotPassword={onForgotPassword}
-        onPasswordChange={onPasswordChange}
-        onConfirmPasswordChange={onConfirmPasswordChange}
-        onAuthModeChange={onAuthModeChange}
-        password={password}
-        confirmPassword={confirmPassword}
-        user={user}
-      />
+      {/* Authentication is now handled directly by Redux */}
+      <SessionPanel />
 
       <BranchPanel
         busyKey={busyKey}
@@ -77,16 +49,28 @@ export function Sidebar({
         endDate={dateFilters.endDate}
         month={dateFilters.month}
         onDateModeChange={(dateMode) =>
-          setDateFilters((current) => ({ ...current, dateMode }))
+          setDateFilters((current) => ({
+            ...current,
+            dateMode,
+          }))
         }
         onEndDateChange={(endDate) =>
-          setDateFilters((current) => ({ ...current, endDate }))
+          setDateFilters((current) => ({
+            ...current,
+            endDate,
+          }))
         }
         onMonthChange={(month) =>
-          setDateFilters((current) => ({ ...current, month }))
+          setDateFilters((current) => ({
+            ...current,
+            month,
+          }))
         }
         onStartDateChange={(startDate) =>
-          setDateFilters((current) => ({ ...current, startDate }))
+          setDateFilters((current) => ({
+            ...current,
+            startDate,
+          }))
         }
         startDate={dateFilters.startDate}
       />

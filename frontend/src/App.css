@@ -864,6 +864,13 @@ tr.row-highlight td {
   margin-top: 14px;
 }
 
+.transfer-actions{
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
 .transfer-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
