@@ -304,6 +304,7 @@ export const getTransferMatrixReport = async ({
   month,
   startDate,
   endDate,
+  status,
 } = {}) => {
   const query = {};
   const andConditions = [];
@@ -333,7 +334,7 @@ export const getTransferMatrixReport = async ({
   }
 
   if (status && status !== "all") {
-    query.status = "delivered";
+    query.status = status;
   }
 
   const dates = getTransferMatrixDateRange({ month, startDate, endDate });
@@ -428,6 +429,7 @@ export const getMonthlyTransferStockReport = async ({
   month,
   startDate,
   endDate,
+  status,
 } = {}) => {
   if (!shopId) {
     throw new AppError("shopId is required", 400);
@@ -470,7 +472,7 @@ export const getMonthlyTransferStockReport = async ({
   }
 
   if (status && status !== "all") {
-    query.status = delivered;
+    query.status = status;
   }
 
   const transfers = await Transfer.find(query)
@@ -526,6 +528,7 @@ export const getAllShopMonthlyTransferStockReport = async ({
   month,
   startDate,
   endDate,
+  status,
 } = {}) => {
   if (!["out", "in"].includes(direction)) {
     throw new AppError("direction must be out or in", 400);
@@ -552,7 +555,7 @@ export const getAllShopMonthlyTransferStockReport = async ({
   }
 
   if (status && status !== "all") {
-    query.status = delivered;
+    query.status = status;
   }
 
   const transfers = await Transfer.find(query)
