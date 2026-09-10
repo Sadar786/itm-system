@@ -169,6 +169,7 @@ const exportMonthlyTransferStock = async (req, res, direction) => {
       ...req.query,
       direction,
       shopId: getScopedShopId(req),
+      status: "delivered",
     });
 
     const buffer = await createMonthlyTransferStockWorkbookBuffer(report);
