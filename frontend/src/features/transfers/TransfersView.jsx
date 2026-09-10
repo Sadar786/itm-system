@@ -34,6 +34,8 @@ export function TransfersView({
 
     const transferNo = transfer.transferNo?.toLowerCase() || "";
 
+    const controlNumber = transfer.controlNumber?.toLowerCase() || "";
+
     const remarks = transfer.remarks?.toLowerCase() || "";
 
     const fromCode = transfer.fromShopId?.code?.toLowerCase() || "";
@@ -54,6 +56,7 @@ export function TransfersView({
 
     return (
       transferNo.includes(search) ||
+      controlNumber.includes(search) ||
       remarks.includes(search) ||
       fromCode.includes(search) ||
       fromName.includes(search) ||
@@ -171,6 +174,7 @@ export function TransfersView({
           <thead className="table-head">
             <tr>
               <th>Date</th>
+              <th>Control #</th>
               <th>Items</th>
               <th>From</th>
               <th>To</th>
@@ -204,6 +208,8 @@ export function TransfersView({
                     })}
                   </span>
                 </td>
+
+                <td>{transfer.controlNumber || "-"}</td>
 
                 <td>
                   {transfer.items?.length
@@ -284,7 +290,7 @@ export function TransfersView({
             {!filteredTransfers.length && (
               <tr>
                 <td
-                  colSpan={isAdmin ? 7 : 6}
+                  colSpan={isAdmin ? 8 : 7}
                   className="empty-cell"
                 >
                   {searchTerm || statusFilter !== "all"

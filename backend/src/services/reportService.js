@@ -655,7 +655,7 @@ export const getMovementReport = async ({
     .map((movement) => movement.referenceId);
 
   const transfers = await Transfer.find({ _id: { $in: transferIds } }).select(
-    "_id transferNo status",
+    "_id transferNo controlNumber status",
   );
   const transfersById = new Map(
     transfers.map((transfer) => [transfer._id.toString(), transfer]),
@@ -673,6 +673,8 @@ export const getMovementReport = async ({
       movementNo: movement.movementNo,
       shopId: movement.shopId?._id?.toString() || "",
       transferNo: transfersById.get(movement.referenceId.toString())?.transferNo || "",
+      controlNumber:
+        transfersById.get(movement.referenceId.toString())?.controlNumber || "",
       transferStatus:
         transfersById.get(movement.referenceId.toString())?.status || null,
       movementDate: movement.movementDate,

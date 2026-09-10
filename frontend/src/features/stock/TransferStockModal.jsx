@@ -75,6 +75,18 @@ export function TransferStockModal({
           </label>
         </div>
 
+        <label>
+          Control #
+          <input
+            type="text"
+            value={transfer.controlNumber}
+            onChange={(event) =>
+              onTransferChange("controlNumber", event.target.value)
+            }
+            placeholder="Enter control number"
+          />
+        </label>
+
         {/* PRODUCT SEARCH */}
         <div className="product-autocomplete">
           <label>

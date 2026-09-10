@@ -53,6 +53,7 @@ export const createTransfer = async (req, res) => {
       fromShopId,
       toShopId,
       transferDate,
+      controlNumber,
       remarks,
       items,
     } = req.body;
@@ -146,6 +147,7 @@ export const createTransfer = async (req, res) => {
       fromShopId,
       toShopId,
       items,
+      controlNumber: controlNumber || "",
       remarks: remarks || "",
       transferDate: transferDate ? new Date(transferDate) : new Date(),
       createdBy: req.user._id,

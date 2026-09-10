@@ -68,6 +68,7 @@ const emptyAddStock = {
 const emptyTransfer = {
   fromShopId: "",
   toShopId: "",
+  controlNumber: "",
   remarks: "Stock Transfer.....",
 };
 
@@ -1254,6 +1255,7 @@ useEffect(() => {
         body: {
           fromShopId: transfer.fromShopId,
           toShopId: transfer.toShopId,
+          controlNumber: transfer.controlNumber,
           remarks: transfer.remarks,
           items: transferItems,
         },

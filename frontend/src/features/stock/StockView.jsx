@@ -70,6 +70,8 @@ export function StockView({
         groups[key] = {
           groupKey: key,
           transferNo: movement.transferNo || relatedTransfer?.transferNo || "",
+          controlNumber:
+            movement.controlNumber || relatedTransfer?.controlNumber || "",
           transferStatus:
             relatedTransfer?.status || movement.transferStatus || null,
           transferId,
@@ -133,6 +135,8 @@ export function StockView({
 
     const transferNo = transfer.transferNo?.toLowerCase() || "";
 
+    const controlNumber = transfer.controlNumber?.toLowerCase() || "";
+
     const movementType = transfer.movementType?.toLowerCase() || "";
 
     const shopCode = transfer.shopCode?.toLowerCase() || "";
@@ -161,6 +165,7 @@ export function StockView({
 
     return (
       transferNo.includes(search) ||
+      controlNumber.includes(search) ||
       movementType.includes(search) ||
       shopCode.includes(search) ||
       shopName.includes(search) ||
@@ -389,6 +394,7 @@ export function StockView({
               <tr>
                 <th>Date</th>
                 <th>Type</th>
+                <th>Control #</th>
                 <th>Items</th>
                 <th>
                   Transfered{" "}
@@ -441,6 +447,8 @@ export function StockView({
                       <span>{transfer.transferNo}</span>
                     )}
                   </td>
+
+                  <td>{transfer.controlNumber || "-"}</td>
 
                   {/* ALL ITEMS OF THIS TRANSFER */}
                   <td>
@@ -563,7 +571,7 @@ export function StockView({
 
               {!recentTransfers.length && (
                 <tr>
-                  <td colSpan="6" className="empty-cell">
+                  <td colSpan="7" className="empty-cell">
                     {searchTerm
                       ? `No transfers found for "${searchTerm}".`
                       : `No ${

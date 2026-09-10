@@ -10,6 +10,13 @@ const transferSchema = new mongoose.Schema(
       trim: true,
     },
 
+    controlNumber: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
+
     fromShopId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Shop",
