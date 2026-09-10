@@ -19,12 +19,11 @@ export function AdminProductModal({
       title={isEdit ? 'Edit product' : 'Create product'}
     >
       <form className="modal-form" onSubmit={onSubmit}>
-        <label>
-          Item code
+        <label for="itemCode">Enter item code
           <input
             value={productForm.itemCode}
             onChange={(event) => onChange('itemCode', event.target.value)}
-            placeholder="Enter item code"
+            placeholder="Enter item code: (required)"
             required
           />
         </label>
@@ -33,7 +32,7 @@ export function AdminProductModal({
           <input
             value={productForm.description}
             onChange={(event) => onChange('description', event.target.value)}
-            placeholder="Enter description"
+            placeholder="Enter description: (required)"
             required
           />
         </label>
@@ -43,7 +42,7 @@ export function AdminProductModal({
             value={productForm.categoryId}
             onChange={(event) => onChange('categoryId', event.target.value)} 
           >
-            <option value="">Select category</option>
+            <option value="">Select category: (optional)</option>
             {categories.map((category) => (
               <option key={category._id} value={category._id}>
                 {category.name}
@@ -58,7 +57,7 @@ export function AdminProductModal({
             onChange={(event) => onChange('defaultUnitId', event.target.value)}
             required
           >
-            <option value="">Select unit</option>
+            <option value="">Select unit: ( required )</option>
             {units.map((unit) => (
               <option key={unit._id} value={unit._id}>
                 {unit.shortName || unit.name}
@@ -66,12 +65,12 @@ export function AdminProductModal({
             ))}
           </select>
         </label>
-        <label>
+        {/* <label>
           Barcode
           <input
             value={productForm.barcode}
             onChange={(event) => onChange('barcode', event.target.value)}
-            placeholder="Enter barcode"
+            placeholder="Enter barcode: (optional)"
           />
         </label>
         <label className="checkbox-label">
@@ -99,7 +98,7 @@ export function AdminProductModal({
             value={productForm.reorderLevel}
             onChange={(event) => onChange('reorderLevel', event.target.value)}
           />
-        </label>
+        </label> */}
         <label className="full-width">
           Notes
           <textarea
