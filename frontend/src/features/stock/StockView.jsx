@@ -25,6 +25,7 @@ export function StockView({
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [openActionMenu, setOpenActionMenu] = useState("");
+  const isShopkeeper = user?.role === "shop_keeper";
 
   const getId = (value) =>
     (value?._id || value)?.toString?.() || "";
@@ -185,12 +186,14 @@ export function StockView({
     { in_transit: 0, delivered: 0, cancelled: 0 },
   );
 
-  const getStatusLabel = (status) => {
+  const getStatusLabel = (status, movementType) => {
     switch (status) {
       case "in_transit":
         return "In Transit";
       case "delivered":
-        return "Delivered";
+        return isShopkeeper && movementType === "TRANSFER_IN"
+          ? "Received"
+          : "Delivered";
       case "cancelled":
         return "Cancelled";
       default:
@@ -244,7 +247,7 @@ export function StockView({
         </article>
 
         <article className="summary-card status-summary delivered">
-          <span>Delivered</span>
+          <span>Completed</span>
           <strong>{statusTotals.delivered}</strong>
         </article>
 
@@ -345,7 +348,7 @@ export function StockView({
           }`}
           onClick={() => setStatusFilter("delivered")}
         >
-          Delivered
+          Completed
         </button>
         <button
           type="button"
@@ -490,7 +493,10 @@ export function StockView({
                   <td>
                     <div className="stock-status-cell">
                       <span className={`transfer-status ${transfer.transferStatus || ""}`}>
-                        {getStatusLabel(transfer.transferStatus)}
+                        {getStatusLabel(
+                          transfer.transferStatus,
+                          transfer.movementType,
+                        )}
                       </span>
 
                       {stockFilter === "IN" &&
@@ -526,7 +532,10 @@ export function StockView({
                                 >
                                   {busyKey === `deliver-transfer-${transfer.transferId}`
                                     ? "Updating..."
-                                    : "Mark Delivered"}
+                                    : isShopkeeper &&
+                                        transfer.movementType === "TRANSFER_IN"
+                                      ? "Mark Received"
+                                      : "Mark Delivered"}
                                 </button>
                                 <button
                                   type="button"

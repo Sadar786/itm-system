@@ -15,6 +15,7 @@ export function TransfersView({
   const [statusFilter, setStatusFilter] = useState("all");
 
   const isAdmin = user?.role === "admin";
+  const isShopkeeper = user?.role === "shop_keeper";
 
   const hasMore =
     transferPagination.page < transferPagination.pages &&
@@ -62,13 +63,27 @@ export function TransfersView({
     );
   });
 
-  const getStatusLabel = (status) => {
+  const isIncomingForShopkeeper = (transfer) => {
+    const userShopId = user?.shopId?._id || user?.shopId;
+    const destinationShopId = transfer.toShopId?._id || transfer.toShopId;
+
+    return (
+      isShopkeeper &&
+      userShopId &&
+      destinationShopId &&
+      userShopId.toString() === destinationShopId.toString()
+    );
+  };
+
+  const getStatusLabel = (status, transfer) => {
     switch (status) {
       case "in_transit":
         return "In Transit";
 
       case "delivered":
-        return "Delivered";
+        return isIncomingForShopkeeper(transfer)
+          ? "Received"
+          : "Delivered";
 
       case "cancelled":
         return "Cancelled";
@@ -115,7 +130,7 @@ export function TransfersView({
               className={statusFilter === "delivered" ? "active" : ""}
               onClick={() => setStatusFilter("delivered")}
             >
-              Delivered
+              Completed
             </button>
 
             <button
@@ -226,7 +241,7 @@ export function TransfersView({
                   <span
                     className={`transfer-status ${transfer.status}`}
                   >
-                    {getStatusLabel(transfer.status)}
+                    {getStatusLabel(transfer.status, transfer)}
                   </span>
 
                 </td>
