@@ -216,7 +216,6 @@ export function SessionPanel() {
 
   const handleLogout = () => {
     dispatch(logout());
-    window.location.href = "/login";
   };
 
   // ============================================================

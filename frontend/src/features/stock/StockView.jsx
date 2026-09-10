@@ -541,7 +541,7 @@ export function StockView({
                                 >
                                   {busyKey === `cancel-transfer-${transfer.transferId}`
                                     ? "Cancelling..."
-                                    : "Cancel"}
+                                    : "Mark Cancel"}
                                 </button>
                               </div>
                             )}
