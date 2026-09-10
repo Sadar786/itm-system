@@ -267,6 +267,7 @@ function App() {
             : item,
         ),
       );
+      await loadMovements();
     } catch (error) {
       setError(error.message || "Failed to mark transfer as delivered");
     } finally {
@@ -297,6 +298,7 @@ function App() {
             : item,
         ),
       );
+      await loadMovements();
     } catch (error) {
       setError(error.message || "Failed to cancel transfer");
     } finally {
@@ -1410,10 +1412,15 @@ useEffect(() => {
         <Notice error={error || authError} message={message || authMessage} />
         {activeView === "stock" ? (
           <StockView
+            busyKey={busyKey}
             isLoggedIn={isLoggedIn}
             movements={movements}
+            transfers={transfers}
             onOpenAddStock={openAddStockModal}
             onOpenTransferStock={openTransferModal}
+            onMarkDelivered={handleMarkDelivered}
+            onCancelTransfer={handleCancelTransfer}
+            user={user}
           />
         ) : activeView === "reports" ? (
           <ReportsView
@@ -1461,8 +1468,6 @@ useEffect(() => {
             onLoadMoreTransfers={handleLoadMoreTransfers}
             onSelectTransfer={handleSelectTransfer}
             onDeleteTransfer={handleDeleteTransfer}
-            onMarkDelivered={handleMarkDelivered}
-            onCancelTransfer={handleCancelTransfer}
             transferPagination={transferPagination}
             transfers={transfers}
             user={user}

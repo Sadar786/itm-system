@@ -650,6 +650,17 @@ export const getMovementReport = async ({
     .populate("unitId", "name shortName")
     .populate("createdBy", "name email");
 
+  const transferIds = movements
+    .filter((movement) => movement.referenceType === "Transfer")
+    .map((movement) => movement.referenceId);
+
+  const transfers = await Transfer.find({ _id: { $in: transferIds } }).select(
+    "_id transferNo status",
+  );
+  const transfersById = new Map(
+    transfers.map((transfer) => [transfer._id.toString(), transfer]),
+  );
+
   return movements.map((movement) => {
     const relatedShop =
       movement.movementType === "TRANSFER_OUT"
@@ -660,6 +671,10 @@ export const getMovementReport = async ({
 
     return {
       movementNo: movement.movementNo,
+      shopId: movement.shopId?._id?.toString() || "",
+      transferNo: transfersById.get(movement.referenceId.toString())?.transferNo || "",
+      transferStatus:
+        transfersById.get(movement.referenceId.toString())?.status || null,
       movementDate: movement.movementDate,
       shopCode: movement.shopId?.code || "",
       shopName: movement.shopId?.name || "",

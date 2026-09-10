@@ -59,7 +59,7 @@ const requestSignupOtp = async (req, res) => {
     // Send email
     await sendEmail({
       to: normalizedEmail,
-      subject: "Your Inventory System verification code",
+      subject: "Your Prime Gourmet Inventory System verification code",
       text: `Your verification code is ${otp}. This code expires in 10 minutes.`,
       html: `
         <div style="font-family: Arial, sans-serif;">
@@ -71,7 +71,7 @@ const requestSignupOtp = async (req, res) => {
             ${otp}
           </h1>
 
-          <p>This code will expire in 10 minutes.</p>
+          <p>This code will <strong>expire in 10 minutes</strong>.</p>
 
           <p>If you did not request this code, you can ignore this email.</p>
         </div>

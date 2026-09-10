@@ -1,3 +1,4 @@
+//src/features/transfers/TransfersView.jsx
 import { Search, X } from "lucide-react";
 import { useState } from "react";
 
@@ -7,8 +8,6 @@ export function TransfersView({
   onSelectTransfer,
   onDeleteTransfer,
   transferPagination,
-  onMarkDelivered,
-  onCancelTransfer,
   transfers,
   user,
 }) {
@@ -20,18 +19,6 @@ export function TransfersView({
   const hasMore =
     transferPagination.page < transferPagination.pages &&
     transfers.length < transferPagination.total;
-
-  const isReceiver = (transfer) => {
-    const userShopId = user?.shopId?._id || user?.shopId;
-
-    const receiverShopId = transfer?.toShopId?._id || transfer?.toShopId;
-
-    return (
-      userShopId &&
-      receiverShopId &&
-      userShopId.toString() === receiverShopId.toString()
-    );
-  };
 
   const filteredTransfers = transfers.filter((transfer) => {
     // STATUS FILTER
@@ -242,55 +229,6 @@ export function TransfersView({
                     {getStatusLabel(transfer.status)}
                   </span>
 
-                  {transfer.status === "in_transit" &&
-                    isReceiver(transfer) && (
-                      <div className="transfer-actions">
-                        <button
-                          type="button"
-                          className="success-action"
-                          disabled={
-                            busyKey ===
-                            `deliver-transfer-${transfer._id}`
-                          }
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onMarkDelivered(transfer);
-                          }}
-                        >
-                          {busyKey ===
-                          `deliver-transfer-${transfer._id}`
-                            ? "Updating..."
-                            : "Mark Delivered"}
-                        </button>
-
-                        <button
-                          type="button"
-                          className="danger-action"
-                          disabled={
-                            busyKey ===
-                            `cancel-transfer-${transfer._id}`
-                          }
-                          onClick={(event) => {
-                            event.stopPropagation();
-
-                            const confirmed = window.confirm(
-                              `Are you sure you want to cancel transfer ${
-                                transfer.transferNo || ""
-                              }?`,
-                            );
-
-                            if (confirmed) {
-                              onCancelTransfer(transfer);
-                            }
-                          }}
-                        >
-                          {busyKey ===
-                          `cancel-transfer-${transfer._id}`
-                            ? "Cancelling..."
-                            : "Cancel"}
-                        </button>
-                      </div>
-                    )}
                 </td>
 
                 <td>{transfer.remarks || "-"}</td>
