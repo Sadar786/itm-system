@@ -1,6 +1,7 @@
 import { BranchPanel } from "./BranchPanel";
 import { ReportDatePanel } from "./ReportDatePanel";
 import { SessionPanel } from "./SessionPanel";
+import Footer from "./Footer";
 import logo from "../assets/logo1.jpeg";
 
 export function Sidebar({
@@ -74,6 +75,9 @@ export function Sidebar({
         }
         startDate={dateFilters.startDate}
       />
+
+{/* footer */}
+      <Footer />
     </aside>
   );
 }
