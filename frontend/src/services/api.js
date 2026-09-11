@@ -65,8 +65,8 @@ export const signup = async ({ name, email, password }) => {
    USER MANAGEMENT APIs
 ===================================================== */
 
-export const getUsers = (token) =>
-  apiJson("/auth", token);
+export const getUsers = (token, search = "") =>
+  apiJson(`/auth${search.trim() ? `?search=${encodeURIComponent(search.trim())}` : ""}`, token);
 
 export const updateUser = ({ token, userId, body }) =>
   apiJson(`/auth/user/${userId}`, token, {
@@ -211,7 +211,8 @@ export const verifyForgotPasswordOtp = async ({
 };
 
 
-export const getProducts = (token) => apiJson('/products?limit=500', token)
+export const getProducts = (token, search = '') =>
+  apiJson(`/products?limit=500${search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''}`, token)
 
 export const searchProducts = (token, search, limit = 20) => {
   const params = new URLSearchParams();
@@ -249,7 +250,8 @@ export const downloadProductsExcel = async ({ token }) => {
   return filename
 }
 
-export const getShops = (token) => apiJson('/shops/all', token)
+export const getShops = (token, search = '') =>
+  apiJson(`/shops/all${search.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`, token)
 
 export const getTransferDestinationShops = (token) =>
   apiJson('/shops/transfer-destinations', token)
@@ -338,8 +340,8 @@ export const createTransfer = ({ token, body }) =>
     body: JSON.stringify(body),
   })
 
-export const getTransfers = ({ token, page = 1, limit = 20 }) =>
-  apiJson(`/transfers?page=${page}&limit=${limit}`, token)
+export const getTransfers = ({ token, page = 1, limit = 20, search = '' }) =>
+  apiJson(`/transfers?page=${page}&limit=${limit}${search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''}`, token)
 
 export const deleteTransfer = ({ token, transferId }) =>
   apiJson(`/transfers/${transferId}`, token, {
@@ -356,7 +358,7 @@ export const cancelTransfer = ({ token, transferId }) =>
     method: "PATCH",
   });
 
-export const getMovements = ({ token, shopId, startDate, endDate }) => {
+export const getMovements = ({ token, shopId, startDate, endDate, search = '' }) => {
   const params = new URLSearchParams()
   if (shopId?.trim()) {
     params.set('shopId', shopId.trim())
@@ -367,6 +369,7 @@ export const getMovements = ({ token, shopId, startDate, endDate }) => {
   if (endDate) {
     params.set('endDate', endDate)
   }
+  if (search.trim()) params.set('search', search.trim())
 
   return apiJson(`/reports/movements${params.size ? `?${params}` : ''}`, token)
 }

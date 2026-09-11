@@ -611,6 +611,7 @@ export const getMovementReport = async ({
   shopId,
   productId,
   movementType,
+  search,
   startDate,
   endDate,
 } = {}) => {
@@ -634,6 +635,23 @@ export const getMovementReport = async ({
 
   if (movementType) {
     query.movementType = movementType;
+  }
+
+  if (search?.trim()) {
+    const expression = new RegExp(search.trim(), "i");
+    const [transfers, products] = await Promise.all([
+      Transfer.find({ $or: [{ transferNo: expression }, { controlNumber: expression }] }).select("_id"),
+      Product.find({ $or: [{ itemCode: expression }, { description: expression }] }).select("_id"),
+    ]);
+    query.$and = [{
+      $or: [
+        { movementNo: expression },
+        { movementType: expression },
+        { remarks: expression },
+        { referenceId: { $in: transfers.map((transfer) => transfer._id) } },
+        { productId: { $in: products.map((product) => product._id) } },
+      ],
+    }];
   }
 
   const movementDate = buildDateQuery({ startDate, endDate });

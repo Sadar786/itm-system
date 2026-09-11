@@ -505,7 +505,15 @@ const verifyForgotPasswordOtp = async (req, res) => {
 //GET /api/users
 const getAlUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
+    const search = req.query.search?.trim();
+    const query = search
+      ? {
+          $or: ["name", "email", "role"].map((field) => ({
+            [field]: { $regex: search, $options: "i" },
+          })),
+        }
+      : {};
+    const users = await User.find(query).select("-password");
     res.status(200).json({
       success: true,
       users,

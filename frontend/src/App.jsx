@@ -165,6 +165,7 @@ function App() {
     limit: PAGE_SIZE,
   });
   const [addProductSearch, setAddProductSearch] = useState("");
+  const [addSearchProducts, setAddSearchProducts] = useState([]);
   const [transferProductSearch, setTransferProductSearch] = useState("");
   const [transferSearchProducts, setTransferSearchProducts] = useState([]);
   const [transferSearchBusy, setTransferSearchBusy] = useState(false);
@@ -183,8 +184,10 @@ function App() {
   const canManage = isAdmin || isShopkeeper;
 
   const selectedProduct = useMemo(
-    () => products.find((product) => product._id === addStock.productId),
-    [addStock.productId, products],
+    () =>
+      addSearchProducts.find((product) => product._id === addStock.productId) ||
+      products.find((product) => product._id === addStock.productId),
+    [addStock.productId, addSearchProducts, products],
   );
 
   const selectedTransferProduct = useMemo(() => {
@@ -197,6 +200,17 @@ function App() {
     );
   }, [transferSearchProducts, products, transfer.productId]);
 
+  const filteredAddProducts = useMemo(() => {
+    const needle = addProductSearch.trim().toLowerCase();
+    if (!needle) return products;
+
+    return products.filter((product) =>
+      `${product.itemCode || ""} ${product.description || ""}`
+        .toLowerCase()
+        .includes(needle),
+    );
+  }, [addProductSearch, products]);
+  
   const assignedShopId = useMemo(
     () => getId(user?.shopId) || getId(shopId),
     [user?.shopId, shopId],
@@ -306,35 +320,24 @@ function App() {
       setBusyKey("");
     }
   };
-  const filteredAddProducts = useMemo(() => {
-    const needle = addProductSearch.trim().toLowerCase();
-    if (!needle) return products;
-
-    return products.filter((product) =>
-      `${product.itemCode || ""} ${product.description || ""}`
-        .toLowerCase()
-        .includes(needle),
-    );
-  }, [addProductSearch, products]);
-
   const isTransferSubmitDisabled =
     !transfer.fromShopId ||
     !transfer.toShopId ||
     transfer.fromShopId === transfer.toShopId ||
     transferItems.length === 0;
 
-  const loadProducts = async (authToken = token) => {
-    const data = await getProducts(authToken);
+  const loadProducts = async (authToken = token, search = "") => {
+    const data = await getProducts(authToken, search);
     setProducts(data.data || []);
   };
 
-  const loadShops = async (authToken = token) => {
-    const data = await getShops(authToken);
+  const loadShops = async (authToken = token, search = "") => {
+    const data = await getShops(authToken, search);
     setShops(data.data || []);
   };
 
-  const loadUsers = async (authToken = token) => {
-    const data = await getUsers(authToken);
+  const loadUsers = async (authToken = token, search = "") => {
+    const data = await getUsers(authToken, search);
     setUsers(data.users || []);
   };
 
@@ -357,11 +360,13 @@ function App() {
     authToken = token,
     page = 1,
     append = false,
+    search = "",
   } = {}) => {
     const data = await getTransfers({
       token: authToken,
       page,
       limit: PAGE_SIZE,
+      search,
     });
 
     setTransfers((current) =>
@@ -378,12 +383,14 @@ function App() {
   const loadMovements = async ({
     authToken = token,
     targetShopId = shopId,
+    search = "",
   } = {}) => {
     const dateRange = getMovementDateRange(dateFilters);
     const data = await getMovements({
       token: authToken,
       shopId: targetShopId,
       ...dateRange,
+      search,
     });
 
     setMovements(data.data || []);

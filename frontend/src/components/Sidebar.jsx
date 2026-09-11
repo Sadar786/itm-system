@@ -26,8 +26,8 @@ export function Sidebar({
         </div>
 
         <div>
-          <h1>Inventory Control</h1>
-          <p>Branch stock, transfers, and reports</p>
+          <h1>Prime Gourmet</h1>
+          <p>Inter Branch Transfers and reports</p>
         </div>
       </div>
 

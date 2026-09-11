@@ -188,7 +188,7 @@ export const createTransfer = async (req, res) => {
  */
 export const getAllTransfers = async (req, res) => {
   try {
-    const { fromShopId, toShopId, status, page = 1, limit = 20 } = req.query;
+    const { fromShopId, toShopId, status, search, page = 1, limit = 20 } = req.query;
 
     const query = {};
 
@@ -244,6 +244,19 @@ export const getAllTransfers = async (req, res) => {
 
     if (status) {
       query.status = status;
+    }
+
+    if (search?.trim()) {
+      const expression = new RegExp(search.trim(), "i");
+      const searchQuery = {
+        $or: [
+          { transferNo: expression },
+          { controlNumber: expression },
+          { remarks: expression },
+        ],
+      };
+      query.$and = query.$or ? [{ $or: query.$or }, searchQuery] : [searchQuery];
+      delete query.$or;
     }
 
     const pageNumber = Math.max(1, parseInt(page, 10) || 1);

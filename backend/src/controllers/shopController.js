@@ -113,7 +113,15 @@ const createShop = async (req, res) => {
 // ==============================
 const getAllShops = async (req, res) => {
     try {
-        const shops = await Shop.find({})
+        const search = req.query.search?.trim();
+        const query = search
+            ? {
+                $or: ["name", "code", "location", "phone"].map((field) => ({
+                    [field]: { $regex: search, $options: "i" },
+                })),
+            }
+            : {};
+        const shops = await Shop.find(query)
             .select("-__v")
             .sort({ createdAt: -1 });
 
