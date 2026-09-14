@@ -248,11 +248,30 @@ export const getAllTransfers = async (req, res) => {
 
     if (search?.trim()) {
       const expression = new RegExp(search.trim(), "i");
+      const [products, shops] = await Promise.all([
+        Product.find({
+          $or: [{ itemCode: expression }, { description: expression }],
+        }).select("_id"),
+        Shop.find({
+          $or: [{ code: expression }, { name: expression }],
+        }).select("_id"),
+      ]);
+      const matchingItems = await TransferItem.find({
+        productId: { $in: products.map((product) => product._id) },
+      }).select("transferId");
+
       const searchQuery = {
         $or: [
           { transferNo: expression },
           { controlNumber: expression },
           { remarks: expression },
+          { fromShopId: { $in: shops.map((shop) => shop._id) } },
+          { toShopId: { $in: shops.map((shop) => shop._id) } },
+          {
+            _id: {
+              $in: matchingItems.map((item) => item.transferId),
+            },
+          },
         ],
       };
       query.$and = query.$or ? [{ $or: query.$or }, searchQuery] : [searchQuery];

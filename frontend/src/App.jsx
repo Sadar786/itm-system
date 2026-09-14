@@ -204,12 +204,26 @@ function App() {
     const needle = addProductSearch.trim().toLowerCase();
     if (!needle) return products;
 
-    return products.filter((product) =>
-      `${product.itemCode || ""} ${product.description || ""}`
-        .toLowerCase()
-        .includes(needle),
-    );
-  }, [addProductSearch, products]);
+    return addSearchProducts;
+  }, [addProductSearch, addSearchProducts, products]);
+
+  const handleAddProductSearch = async (value) => {
+    setAddProductSearch(value);
+    const search = value.trim();
+
+    if (!search) {
+      setAddSearchProducts([]);
+      return;
+    }
+
+    try {
+      const data = await searchProducts(token, search, 20);
+      setAddSearchProducts(data.data || []);
+    } catch (searchError) {
+      console.error("Product search failed:", searchError);
+      setAddSearchProducts([]);
+    }
+  };
   
   const assignedShopId = useMemo(
     () => getId(user?.shopId) || getId(shopId),
@@ -361,12 +375,14 @@ function App() {
     page = 1,
     append = false,
     search = "",
+    status = "",
   } = {}) => {
     const data = await getTransfers({
       token: authToken,
       page,
       limit: PAGE_SIZE,
       search,
+      status,
     });
 
     setTransfers((current) =>
@@ -975,7 +991,9 @@ useEffect(() => {
   };
 
   const handleProductChange = (productId) => {
-    const product = products.find((item) => item._id === productId);
+    const product =
+      addSearchProducts.find((item) => item._id === productId) ||
+      products.find((item) => item._id === productId);
     const unitId = product?.defaultUnitId?._id || product?.defaultUnitId || "";
     setAddStock((current) => ({
       ...current,
@@ -1295,7 +1313,7 @@ useEffect(() => {
     }
   };
 
-  const handleLoadMoreTransfers = async () => {
+  const handleLoadMoreTransfers = async ({ search = "", status = "" } = {}) => {
     if (transferPagination.page >= transferPagination.pages) return;
 
     setBusyKey("transfers-load-more");
@@ -1305,9 +1323,50 @@ useEffect(() => {
       await loadTransfers({
         page: transferPagination.page + 1,
         append: true,
+        search,
+        status,
       });
     } catch (loadError) {
       setError(loadError.message);
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  const handleTransferSearch = async ({ search = "", status = "" }) => {
+    setBusyKey("transfers-search");
+    setError("");
+
+    try {
+      await loadTransfers({ search, status });
+    } catch (searchError) {
+      setError(searchError.message);
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  const handleMovementSearch = async (search = "") => {
+    setBusyKey("movements-search");
+    setError("");
+
+    try {
+      await loadMovements({ search });
+    } catch (searchError) {
+      setError(searchError.message);
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  const handleAdminProductSearch = async (search = "") => {
+    setBusyKey("admin-products-search");
+    setError("");
+
+    try {
+      await loadProducts(token, search);
+    } catch (searchError) {
+      setError(searchError.message);
     } finally {
       setBusyKey("");
     }
@@ -1427,6 +1486,7 @@ useEffect(() => {
             transfers={transfers}
             onOpenAddStock={openAddStockModal}
             onOpenTransferStock={openTransferModal}
+            onSearchMovements={handleMovementSearch}
             onMarkDelivered={handleMarkDelivered}
             onCancelTransfer={handleCancelTransfer}
             user={user}
@@ -1461,6 +1521,7 @@ useEffect(() => {
             onCreateShop={openCreateShopModal}
             onCreateProduct={openCreateProductModal}
             onProductDelete={handleDeleteProduct}
+            onProductSearch={handleAdminProductSearch}
             onProductEdit={(product) => {
               handleProductEdit(product);
               setActiveModal("product-edit");
@@ -1475,6 +1536,7 @@ useEffect(() => {
           <TransfersView
             busyKey={busyKey}
             onLoadMoreTransfers={handleLoadMoreTransfers}
+            onSearchTransfers={handleTransferSearch}
             onSelectTransfer={handleSelectTransfer}
             onDeleteTransfer={handleDeleteTransfer}
             transferPagination={transferPagination}
@@ -1489,7 +1551,7 @@ useEffect(() => {
           onAddStockChange={handleAddStockChange}
           onClose={closeModal}
           onProductChange={handleProductChange}
-          onProductSearchChange={setAddProductSearch}
+          onProductSearchChange={handleAddProductSearch}
           onSubmit={handleAddStock}
           productSearch={addProductSearch}
           products={filteredAddProducts}

@@ -1,10 +1,11 @@
 //src/features/transfers/TransfersView.jsx
 import { Search, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function TransfersView({
   busyKey,
   onLoadMoreTransfers,
+  onSearchTransfers,
   onSelectTransfer,
   onDeleteTransfer,
   transferPagination,
@@ -13,6 +14,28 @@ export function TransfersView({
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const isFirstSearch = useRef(true);
+  const searchHandler = useRef(onSearchTransfers);
+
+  useEffect(() => {
+    searchHandler.current = onSearchTransfers;
+  }, [onSearchTransfers]);
+
+  useEffect(() => {
+    if (isFirstSearch.current) {
+      isFirstSearch.current = false;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      searchHandler.current({
+        search: searchTerm,
+        status: statusFilter === "all" ? "" : statusFilter,
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, statusFilter]);
 
   const isAdmin = user?.role === "admin";
   const isShopkeeper = user?.role === "shop_keeper";
@@ -21,50 +44,7 @@ export function TransfersView({
     transferPagination.page < transferPagination.pages &&
     transfers.length < transferPagination.total;
 
-  const filteredTransfers = transfers.filter((transfer) => {
-    // STATUS FILTER
-    if (statusFilter !== "all" && transfer.status !== statusFilter) {
-      return false;
-    }
-
-    // SEARCH FILTER
-    const search = searchTerm.trim().toLowerCase();
-
-    if (!search) return true;
-
-    const transferNo = transfer.transferNo?.toLowerCase() || "";
-
-    const controlNumber = transfer.controlNumber?.toLowerCase() || "";
-
-    const remarks = transfer.remarks?.toLowerCase() || "";
-
-    const fromCode = transfer.fromShopId?.code?.toLowerCase() || "";
-
-    const fromName = transfer.fromShopId?.name?.toLowerCase() || "";
-
-    const toCode = transfer.toShopId?.code?.toLowerCase() || "";
-
-    const toName = transfer.toShopId?.name?.toLowerCase() || "";
-
-    const hasMatchingItem = transfer.items?.some((item) => {
-      const itemCode = item.productId?.itemCode?.toLowerCase() || "";
-
-      const description = item.productId?.description?.toLowerCase() || "";
-
-      return itemCode.includes(search) || description.includes(search);
-    });
-
-    return (
-      transferNo.includes(search) ||
-      controlNumber.includes(search) ||
-      remarks.includes(search) ||
-      fromCode.includes(search) ||
-      fromName.includes(search) ||
-      toCode.includes(search) ||
-      toName.includes(search) ||
-      hasMatchingItem
-    );
-  });
+  const filteredTransfers = transfers;
 
   const isIncomingForShopkeeper = (transfer) => {
     const userShopId = user?.shopId?._id || user?.shopId;
@@ -303,12 +283,17 @@ export function TransfersView({
         </table>
       </div>
 
-      {hasMore && !searchTerm && statusFilter === "all" && (
+      {hasMore && (
         <div className="table-footer">
           <button
             type="button"
             className="secondary-action"
-            onClick={onLoadMoreTransfers}
+            onClick={() =>
+              onLoadMoreTransfers({
+                search: searchTerm,
+                status: statusFilter === "all" ? "" : statusFilter,
+              })
+            }
             disabled={busyKey === "transfers-load-more"}
           >
             {busyKey === "transfers-load-more"

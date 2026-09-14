@@ -8,7 +8,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function StockView({
   busyKey,
@@ -16,6 +16,7 @@ export function StockView({
   movements,
   onOpenAddStock,
   onOpenTransferStock,
+  onSearchMovements,
   onMarkDelivered,
   onCancelTransfer,
   transfers,
@@ -25,7 +26,13 @@ export function StockView({
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [openActionMenu, setOpenActionMenu] = useState("");
+  const isFirstSearch = useRef(true);
+  const searchHandler = useRef(onSearchMovements);
   const isShopkeeper = user?.role === "shop_keeper";
+
+  useEffect(() => {
+    searchHandler.current = onSearchMovements;
+  }, [onSearchMovements]);
 
   const getId = (value) =>
     (value?._id || value)?.toString?.() || "";
@@ -115,12 +122,16 @@ export function StockView({
     return true;
   });
 
-  /*
-   * Search inside the GROUPED transfer.
-   *
-   * This means searching for any product will return
-   * the whole transfer.
-   */
+  useEffect(() => {
+    if (isFirstSearch.current) {
+      isFirstSearch.current = false;
+      return;
+    }
+
+    const timer = setTimeout(() => searchHandler.current(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const filteredTransfers = filteredByType.filter((transfer) => {
     if (
       statusFilter !== "all" &&
@@ -129,50 +140,7 @@ export function StockView({
       return false;
     }
 
-    const search = searchTerm.trim().toLowerCase();
-
-    if (!search) return true;
-
-    const transferNo = transfer.transferNo?.toLowerCase() || "";
-
-    const controlNumber = transfer.controlNumber?.toLowerCase() || "";
-
-    const movementType = transfer.movementType?.toLowerCase() || "";
-
-    const shopCode = transfer.shopCode?.toLowerCase() || "";
-
-    const shopName = transfer.shopName?.toLowerCase() || "";
-
-    const relatedShopCode =
-      transfer.relatedShopCode?.toLowerCase() || "";
-
-    const relatedShopName =
-      transfer.relatedShopName?.toLowerCase() || "";
-
-    const hasMatchingItem = transfer.items?.some((movement) => {
-      const itemCode = movement.itemCode?.toLowerCase() || "";
-
-      const product = movement.product?.toLowerCase() || "";
-
-      const movementNo = movement.movementNo?.toLowerCase() || "";
-
-      return (
-        itemCode.includes(search) ||
-        product.includes(search) ||
-        movementNo.includes(search)
-      );
-    });
-
-    return (
-      transferNo.includes(search) ||
-      controlNumber.includes(search) ||
-      movementType.includes(search) ||
-      shopCode.includes(search) ||
-      shopName.includes(search) ||
-      relatedShopCode.includes(search) ||
-      relatedShopName.includes(search) ||
-      hasMatchingItem
-    );
+    return true;
   });
 
   /*

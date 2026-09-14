@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+//src/features/admin/AdminView.jsx
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FileSpreadsheet,
   Pencil,
@@ -26,6 +27,7 @@ export function AdminView({
   onUserDelete,
   onProductDelete,
   onProductEdit,
+  onProductSearch,
   onShopDelete,
   onShopEdit,
   onUnitEdit,
@@ -34,11 +36,31 @@ export function AdminView({
   const [activeSection, setActiveSection] = useState("branches");
   const [branchSearch, setBranchSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const isFirstProductSearch = useRef(true);
+  const productSearchHandler = useRef(onProductSearch);
   const [userSearch, setUserSearch] = useState("");
   const [openUserMenu, setOpenUserMenu] = useState(null);
   const [selectedUserBranch, setSelectedUserBranch] = useState({});
   const canCreateShop = !isShopkeeper || !user?.shopId;
   const showProductSection = !isShopkeeper;
+
+  useEffect(() => {
+    productSearchHandler.current = onProductSearch;
+  }, [onProductSearch]);
+
+  useEffect(() => {
+    if (isFirstProductSearch.current) {
+      isFirstProductSearch.current = false;
+      return;
+    }
+
+    const timer = setTimeout(
+      () => productSearchHandler.current(productSearch),
+      300,
+    );
+
+    return () => clearTimeout(timer);
+  }, [productSearch]);
 
   const sections = [
     {
@@ -81,24 +103,7 @@ export function AdminView({
     );
   }, [shops, branchSearch]);
 
-  const filteredProducts = useMemo(() => {
-    const search = productSearch.toLowerCase().trim();
-
-    if (!search) return products;
-
-    return products.filter((product) =>
-      [
-        product.itemCode,
-        product.description,
-        product.categoryId?.name,
-        product.defaultUnitId?.name,
-        product.defaultUnitId?.shortName,
-        product.isPerishable ? "yes" : "no",
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(search)),
-    );
-  }, [products, productSearch]);
+  const filteredProducts = products;
 
   const filteredUsers = useMemo(() => {
     const search = userSearch.toLowerCase().trim();

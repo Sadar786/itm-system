@@ -340,8 +340,13 @@ export const createTransfer = ({ token, body }) =>
     body: JSON.stringify(body),
   })
 
-export const getTransfers = ({ token, page = 1, limit = 20, search = '' }) =>
-  apiJson(`/transfers?page=${page}&limit=${limit}${search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''}`, token)
+export const getTransfers = ({ token, page = 1, limit = 20, search = '', status = '' }) => {
+  const params = new URLSearchParams({ page, limit })
+  if (search.trim()) params.set('search', search.trim())
+  if (status) params.set('status', status)
+
+  return apiJson(`/transfers?${params.toString()}`, token)
+}
 
 export const deleteTransfer = ({ token, transferId }) =>
   apiJson(`/transfers/${transferId}`, token, {
