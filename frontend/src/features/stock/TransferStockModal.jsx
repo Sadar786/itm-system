@@ -1,3 +1,4 @@
+//src/features/stock/TransferStockModal.jsx
 import { RefreshCw, Send, Plus, Trash2 } from "lucide-react";
 import { Modal } from "../../components/Modal";
 import { formatProductName } from "../../utils/format";

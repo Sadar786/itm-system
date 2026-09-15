@@ -27,6 +27,7 @@ import {
   fetchTransfers,
 } from "./features/transfers/transferSlice";
 import { TransfersView } from "./features/transfers/TransfersView";
+import { WastageFeature } from "./features/wastage/WastageFeature";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 import { currentMonth, todayDate } from "./utils/format";
 import "./App.css";
@@ -65,6 +66,7 @@ function App() {
   const shops = useSelector(selectCatalogShops);
 
   const [activeView, setActiveView] = useState("stock");
+  const [wastageSearch, setWastageSearch] = useState("");
   const [shopId, setShopId] = useState(() => getId(user?.shopId));
   const [dateFilters, setDateFilters] = useState({
     dateMode: "month",
@@ -208,8 +210,10 @@ function App() {
           onNotice={updateNotice}
           shopId={shopId}
         />
+      ) : activeView === "wastage" ? (
+        <WastageFeature key={token || "guest"} shopId={shopId} dateRange={getMovementDateRange(dateFilters)} search={wastageSearch} onSearchChange={setWastageSearch} />
       ) : activeView === "reports" ? (
-        <ReportsFeature dateFilters={dateFilters} shopId={shopId} />
+        <ReportsFeature dateFilters={dateFilters} shopId={shopId} wastageSearch={wastageSearch} wastageDateRange={getMovementDateRange(dateFilters)} />
       ) : activeView === "admin" ? (
         <AdminFeature
           onNotice={updateNotice}

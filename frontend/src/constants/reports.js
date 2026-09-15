@@ -1,4 +1,5 @@
 export const reportGroups = [
+  { title: 'Wastage', reports: [{ key: 'wastage', label: 'Wastage History', path: '/wastes/export', filename: 'wastage-report.xlsx', useShop: true }] },
   
   {
     title: 'Transfers',
@@ -32,4 +33,3 @@ export const reportGroups = [
     ],
   },
 ]
-

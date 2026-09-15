@@ -340,6 +340,17 @@ export const createTransfer = ({ token, body }) =>
     body: JSON.stringify(body),
   })
 
+export const createWaste = ({ token, body }) =>
+  apiRequest('/wastes', { token, method: 'POST', body })
+
+export const getWastes = ({ token, filters = {}, page = 1, signal }) => {
+  const params = new URLSearchParams({ page, limit: 20 })
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) params.set(key, value)
+  }
+  return apiJson(`/wastes?${params}`, token, { signal })
+}
+
 export const getTransfers = ({ token, page = 1, limit = 20, search = '', status = '' }) => {
   const params = new URLSearchParams({ page, limit })
   if (search.trim()) params.set('search', search.trim())

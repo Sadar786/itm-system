@@ -1,0 +1,23 @@
+.wastage-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 18px; }
+.wastage-fields label { display: grid; gap: 8px; min-width: 0; }
+.wastage-fields select, .wastage-fields input, .wastage-fields textarea { width: 100%; min-width: 0; }
+.wastage-item { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+.wastage-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.wastage-error { color: #b42318; }
+.wastage-history { min-width: 0; }
+.wastage-filters { padding: 14px; border-bottom: 1px solid var(--line-soft); background: var(--surface); }
+.wastage-history > .wastage-actions { padding: 14px; align-items: center; justify-content: flex-end; border-top: 1px solid var(--line-soft); }
+.wastage-history > p { padding: 20px 14px; color: var(--muted); }
+.wastage-history .table-wrap td { max-width: 280px; overflow-wrap: anywhere; }
+.wastage-history .detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wastage-history .detail-grid strong { overflow-wrap: anywhere; }
+.wastage-item { padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: #f8fafc; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.wastage-item .icon-button { justify-self: end; }
+.wastage-table-scroll { overflow-x: auto; margin: 20px 0; }
+.wastage-table-scroll table { width: 100%; min-width: 650px; }
+.wastage-table-scroll td { overflow-wrap: anywhere; }
+.wastage-notes { white-space: pre-wrap; }
+.wastage-time { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+@media (max-width: 700px) {
+  .wastage-item { grid-template-columns: minmax(0, 1fr); border-bottom: 1px solid #ddd; padding-bottom: 16px; }
+}

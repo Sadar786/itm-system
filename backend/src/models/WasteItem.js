@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import "./Waste.js";
 
 const wasteItemSchema = new mongoose.Schema(
   {
@@ -20,6 +21,10 @@ const wasteItemSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Quantity is required"],
       min: 0.000001,
+      validate: {
+        validator: Number.isFinite,
+        message: "Quantity must be a finite number",
+      },
     },
 
     unitId: {

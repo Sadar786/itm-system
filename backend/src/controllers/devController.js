@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Category from "../models/Category.js";
 import Inventory from "../models/Inventory.js";
 import InventoryMovement from "../models/InventoryMovement.js";
-import Waste from "../models/Item.js";
+import Waste from "../models/Waste.js";
 import Product from "../models/Product.js";
 import Shop from "../models/Shop.js";
 import Transfer from "../models/Transfer.js";

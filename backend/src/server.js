@@ -7,7 +7,7 @@ import Product from "./models/Product.js";
 import User from "./models/User.js";
 import Category from "./models/Category.js";
 import InventoryMovement from "./models/InventoryMovement.js";
-import Item from "./models/Item.js";
+import Waste from "./models/Waste.js";
 import Transfer from "./models/Transfer.js";
 import WasteItem from "./models/WasteItem.js";
 import dns from "node:dns";

@@ -1,8 +1,8 @@
-import { FileSpreadsheet, PackagePlus, Repeat2, Settings2 } from 'lucide-react'
+import { FileSpreadsheet, PackagePlus, Repeat2, Settings2, Trash2 } from 'lucide-react'
 
 export function ViewTabs({ activeView, onChange, isAdmin }) {
   return (
-    <div className={`view-tabs ${isAdmin ? 'four-tabs' : 'three-tabs'}`} aria-label="Main view">
+    <div className={`view-tabs ${isAdmin ? 'five-tabs' : 'four-tabs'}`} aria-label="Main view">
       <button
         type="button"
         className={activeView === 'stock' ? 'active' : ''}
@@ -10,6 +10,14 @@ export function ViewTabs({ activeView, onChange, isAdmin }) {
       >
         <PackagePlus size={16} />
         Transfers
+      </button>
+      <button
+        type="button"
+        className={activeView === 'wastage' ? 'active' : ''}
+        onClick={() => onChange('wastage')}
+      >
+        <Trash2 size={16} />
+        Wastage
       </button>
       <button
         type="button"

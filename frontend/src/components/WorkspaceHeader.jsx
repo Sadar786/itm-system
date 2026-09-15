@@ -2,12 +2,13 @@ export function WorkspaceHeader({ activeView, isLoggedIn }) {
   const isStock = activeView === 'stock'
   const isTransfers = activeView === 'transfers'
   const isAdmin = activeView === 'admin'
+  const isWastage = activeView === 'wastage'
 
   return (
     <div className="workspace-header">
       <div>
         <h2>
-          {isStock
+          {isWastage ? 'Wastage' : isStock
             ? 'Incoming and Transfers'
             : isTransfers
               ? 'Transfer History'
@@ -16,7 +17,7 @@ export function WorkspaceHeader({ activeView, isLoggedIn }) {
                 : 'Report Downloads'}
         </h2>
         <p>
-          {isStock
+          {isWastage ? 'Record wasted products for your branch.' : isStock
             ? 'Record incoming stock and branch-to-branch transfers.'
             : isTransfers
               ? 'Recent branch-to-branch stock movements.'
