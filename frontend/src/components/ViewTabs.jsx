@@ -11,14 +11,7 @@ export function ViewTabs({ activeView, onChange, isAdmin }) {
         <PackagePlus size={16} />
         Transfers
       </button>
-      <button
-        type="button"
-        className={activeView === 'wastage' ? 'active' : ''}
-        onClick={() => onChange('wastage')}
-      >
-        <Trash2 size={16} />
-        Wastage
-      </button>
+    
       <button
         type="button"
         className={activeView === 'reports' ? 'active' : ''}
@@ -34,6 +27,14 @@ export function ViewTabs({ activeView, onChange, isAdmin }) {
       >
         <Repeat2 size={16} />
         Transfers History
+      </button>
+        <button
+        type="button"
+        className={activeView === 'wastage' ? 'active' : ''}
+        onClick={() => onChange('wastage')}
+      >
+        <Trash2 size={16} />
+        Wastage
       </button>
       {isAdmin ? (
         console.log("isAdmin from ViewTabs:", isAdmin), // Log the value of isAdmin for debugging
