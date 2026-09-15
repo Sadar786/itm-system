@@ -1,25 +1,21 @@
 //src/features/transfers/TransfersView.jsx
 import { Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { selectUser } from "../auth/authSlice";
+import { TransferDetailModal } from "./TransferDetailModal";
+import { fetchTransfers, removeTransfer, selectActiveTransferId, selectTransferPagination, selectTransfers } from "./transferSlice";
 
-export function TransfersView({
-  busyKey,
-  onLoadMoreTransfers,
-  onSearchTransfers,
-  onSelectTransfer,
-  onDeleteTransfer,
-  transferPagination,
-  transfers,
-  user,
-}) {
+export function TransfersView() {
+  const dispatch = useDispatch();
+  const user = useSelector(selectUser);
+  const transfers = useSelector(selectTransfers);
+  const transferPagination = useSelector(selectTransferPagination);
+  const activeTransferId = useSelector(selectActiveTransferId);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedTransfer, setSelectedTransfer] = useState(null);
   const isFirstSearch = useRef(true);
-  const searchHandler = useRef(onSearchTransfers);
-
-  useEffect(() => {
-    searchHandler.current = onSearchTransfers;
-  }, [onSearchTransfers]);
 
   useEffect(() => {
     if (isFirstSearch.current) {
@@ -28,14 +24,14 @@ export function TransfersView({
     }
 
     const timer = setTimeout(() => {
-      searchHandler.current({
+      dispatch(fetchTransfers({
         search: searchTerm,
         status: statusFilter === "all" ? "" : statusFilter,
-      });
+      }));
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchTerm, statusFilter]);
+  }, [dispatch, searchTerm, statusFilter]);
 
   const isAdmin = user?.role === "admin";
   const isShopkeeper = user?.role === "shop_keeper";
@@ -169,7 +165,7 @@ export function TransfersView({
               <tr
                 key={transfer._id}
                 className="clickable-row"
-                onClick={() => onSelectTransfer(transfer)}
+                onClick={() => setSelectedTransfer(transfer)}
               >
                 <td>
                   <strong>
@@ -239,10 +235,7 @@ export function TransfersView({
                     <button
                       type="button"
                       className="danger-action"
-                      disabled={
-                        busyKey ===
-                        `delete-transfer-${transfer._id}`
-                      }
+                      disabled={activeTransferId === transfer._id}
                       onClick={(event) => {
                         event.stopPropagation();
 
@@ -253,12 +246,11 @@ export function TransfersView({
                         );
 
                         if (confirmed) {
-                          onDeleteTransfer(transfer);
+                          dispatch(removeTransfer(transfer._id));
                         }
                       }}
                     >
-                      {busyKey ===
-                      `delete-transfer-${transfer._id}`
+                      {activeTransferId === transfer._id
                         ? "Deleting..."
                         : "Delete"}
                     </button>
@@ -289,19 +281,20 @@ export function TransfersView({
             type="button"
             className="secondary-action"
             onClick={() =>
-              onLoadMoreTransfers({
+              dispatch(fetchTransfers({
+                page: transferPagination.page + 1,
+                append: true,
                 search: searchTerm,
                 status: statusFilter === "all" ? "" : statusFilter,
-              })
+              }))
             }
-            disabled={busyKey === "transfers-load-more"}
+            disabled={Boolean(activeTransferId)}
           >
-            {busyKey === "transfers-load-more"
-              ? "Loading..."
-              : "Load more transfers"}
+            Load more transfers
           </button>
         </div>
       )}
+      <TransferDetailModal isOpen={Boolean(selectedTransfer)} onClose={() => setSelectedTransfer(null)} transfer={selectedTransfer} />
     </section>
   );
 }

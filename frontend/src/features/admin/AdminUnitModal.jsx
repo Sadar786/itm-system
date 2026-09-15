@@ -10,9 +10,6 @@ export function AdminUnitModal({
   onSubmit,
   unitForm,
   units,
-  createUnit,
-  updateUnit,
-  deleteUnit,
 }) {
   return (
     <Modal

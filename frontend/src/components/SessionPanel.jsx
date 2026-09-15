@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -70,16 +70,6 @@ export function SessionPanel() {
     dispatch(resetSignupOtp());
     dispatch(resetForgotOtp());
   };
-
-  // ============================================================
-  // Keep OTP clean
-  // ============================================================
-
-  useEffect(() => {
-    if (!signupOtpSent && !forgotOtpSent) {
-      setOtp("");
-    }
-  }, [signupOtpSent, forgotOtpSent]);
 
   // ============================================================
   // Submit

@@ -1,5 +1,6 @@
 //src/features/admin/AdminView.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   FileSpreadsheet,
   Pencil,
@@ -8,23 +9,21 @@ import {
   Download,
   MoreVertical,
 } from "lucide-react";
-import { downloadProductsExcel } from "../../services/api.js";
+import { deactivateAdminUser, selectAdminActiveUserId, selectAdminUsers, updateAdminUser } from "./adminSlice";
 
 export function AdminView({
   isLoggedIn,
   isShopkeeper,
   user,
-  users,
   busyKey,
   products,
   shops,
   units,
   onCreateProduct,
+  onDownloadProducts,
   onImportProducts,
   onCreateShop,
   onCreateUnit,
-  onUserUpdate,
-  onUserDelete,
   onProductDelete,
   onProductEdit,
   onProductSearch,
@@ -32,7 +31,11 @@ export function AdminView({
   onShopEdit,
   onUnitEdit,
   onUnitDelete,
+  onNotice,
 }) {
+  const dispatch = useDispatch();
+  const users = useSelector(selectAdminUsers);
+  const activeUserId = useSelector(selectAdminActiveUserId);
   const [activeSection, setActiveSection] = useState("branches");
   const [branchSearch, setBranchSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
@@ -124,17 +127,6 @@ export function AdminView({
     );
   }, [users, shops, userSearch]);
 
-  const handleDownloadProducts = async () => {
-    try {
-      await downloadProductsExcel({
-        token: localStorage.getItem("inventoryToken"),
-      });
-    } catch (error) {
-      console.error("Product download failed:", error);
-      alert(error.message || "Failed to download products.");
-    }
-  };
-
   const getUserBranch = (item) => {
     if (!item?.shopId) return null;
 
@@ -144,33 +136,53 @@ export function AdminView({
     return shops.find((shop) => String(shop._id) === String(shopId));
   };
 
-  const handleAssignBranch = (item) => {
+  const handleAssignBranch = async (item) => {
     const branchId = selectedUserBranch[item._id];
 
     if (!branchId) return;
 
-    onUserUpdate(item._id, {
-      shopId: branchId,
-    });
-
-    setOpenUserMenu(null);
+    try {
+      await dispatch(
+        updateAdminUser({ userId: item._id, body: { shopId: branchId } }),
+      ).unwrap();
+      onNotice?.({ error: "", message: "User branch updated successfully." });
+    } catch (error) {
+      onNotice?.({ error: error || "Failed to update user branch.", message: "" });
+    } finally {
+      setOpenUserMenu(null);
+    }
   };
 
-  const handleRemoveBranch = (item) => {
+  const handleRemoveBranch = async (item) => {
     if (!window.confirm(`Remove branch from ${item.name}?`)) {
       return;
     }
 
-    onUserUpdate(item._id, {
-      shopId: null,
-    });
+    try {
+      await dispatch(
+        updateAdminUser({ userId: item._id, body: { shopId: null } }),
+      ).unwrap();
+      setSelectedUserBranch((current) => ({
+        ...current,
+        [item._id]: "",
+      }));
+      onNotice?.({ error: "", message: "User branch removed successfully." });
+    } catch (error) {
+      onNotice?.({ error: error || "Failed to remove user branch.", message: "" });
+    } finally {
+      setOpenUserMenu(null);
+    }
+  };
 
-    setSelectedUserBranch((current) => ({
-      ...current,
-      [item._id]: "",
-    }));
-
-    setOpenUserMenu(null);
+  const handleDeactivateUser = async (userId) => {
+    try {
+      await dispatch(deactivateAdminUser(userId)).unwrap();
+      onNotice?.({ error: "", message: "User deactivated successfully." });
+    } catch (error) {
+      onNotice?.({ error: error || "Failed to deactivate user.", message: "" });
+    } finally {
+      setOpenUserMenu(null);
+    }
   };
 
   return (
@@ -386,7 +398,7 @@ export function AdminView({
               <button
                 type="button"
                 className="primary-action"
-                onClick={handleDownloadProducts}
+                onClick={onDownloadProducts}
                 disabled={!isLoggedIn}
               >
                 <Download size={16} />
@@ -651,7 +663,7 @@ export function AdminView({
                           onClick={() =>
                             setOpenUserMenu(isMenuOpen ? null : item._id)
                           }
-                          disabled={Boolean(busyKey)}
+                          disabled={Boolean(busyKey) || activeUserId === item._id}
                         >
                           <MoreVertical size={18} />
                         </button>
@@ -694,7 +706,7 @@ export function AdminView({
                                   [item._id]: e.target.value,
                                 }))
                               }
-                              disabled={Boolean(busyKey)}
+                              disabled={Boolean(busyKey) || activeUserId === item._id}
                               style={{
                                 width: "100%",
                                 padding: "8px 10px",
@@ -746,7 +758,7 @@ export function AdminView({
                                   justifyContent: "center",
                                   marginBottom: "6px",
                                 }}
-                                disabled={Boolean(busyKey)}
+                                disabled={Boolean(busyKey) || activeUserId === item._id}
                                 onClick={() => handleRemoveBranch(item)}
                               >
                                 Remove Branch
@@ -761,11 +773,8 @@ export function AdminView({
                                   width: "100%",
                                   justifyContent: "center",
                                 }}
-                                disabled={Boolean(busyKey)}
-                                onClick={() => {
-                                  setOpenUserMenu(null);
-                                  onUserDelete(item._id);
-                                }}
+                                disabled={Boolean(busyKey) || activeUserId === item._id}
+                                onClick={() => handleDeactivateUser(item._id)}
                               >
                                 <Trash2 size={15} />
                                 Deactivate User

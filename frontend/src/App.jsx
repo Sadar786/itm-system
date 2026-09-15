@@ -1,95 +1,52 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
   logout,
+  selectAuthError,
+  selectAuthMessage,
   selectIsLoggedIn,
   selectToken,
   selectUser,
-  selectAuthError,
-  selectAuthMessage,
 } from "./features/auth/authSlice";
-
-import { Notice } from "./components/Notice";
-
-import { Sidebar } from "./components/Sidebar";
-import { ViewTabs } from "./components/ViewTabs";
-import { WorkspaceHeader } from "./components/WorkspaceHeader";
-import { ReportsView } from "./features/reports/ReportsView";
-import { AddStockModal } from "./features/stock/AddStockModal";
-import { StockView } from "./features/stock/StockView";
-import { TransferStockModal } from "./features/stock/TransferStockModal";
-import { TransferDetailModal } from "./features/transfers/TransferDetailModal";
-import { TransfersView } from "./features/transfers/TransfersView";
-import { AdminView } from "./features/admin/AdminView";
-import { AdminShopModal } from "./features/admin/AdminShopModal";
-import { AdminProductModal } from "./features/admin/AdminProductModal";
-import { AdminUnitModal } from "./features/admin/AdminUnitModal";
+import { AdminFeature } from "./features/admin/AdminFeature";
 import {
-  getUsers,
-  updateUser,
-  deleteUser,
-  addInventoryStock,
-  createProduct,
-  createShop,
-  createUnit,
-  updateUnit,
-  deleteUnit,
-  createTransfer,
-  deleteProduct,
-  deleteShop,
-  downloadReport,
-  getCategories,
-  getMovements,
-  getProducts,
-  searchProducts,
-  getShops,
-  getTransferDestinationShops,
-  getTransfers,
-  deleteTransfer,
-  markTransferDelivered,
-  cancelTransfer,
-  getUnits,
-  importProducts,
-  updateProduct,
-  updateShop,
-  API_BASE_URL,
-} from "./services/api";
-import { currentMonth, formatProductName, todayDate } from "./utils/format";
+  clearCatalog,
+  fetchCatalogCategories,
+  fetchCatalogProducts,
+  fetchCatalogShops,
+  fetchCatalogTransferDestinationShops,
+  fetchCatalogUnits,
+  selectCatalogShops,
+} from "./features/catalog/catalogSlice";
+import { ReportsFeature } from "./features/reports/ReportsFeature";
+import { StockFeature } from "./features/stock/StockFeature";
+import { clearMovements, fetchMovements } from "./features/stock/stockSlice";
+import {
+  clearTransfers,
+  fetchTransfers,
+} from "./features/transfers/transferSlice";
+import { TransfersView } from "./features/transfers/TransfersView";
+import { WorkspaceShell } from "./components/WorkspaceShell";
+import { currentMonth, todayDate } from "./utils/format";
 import "./App.css";
-
-const emptyAddStock = {
-  productId: "",
-  unitId: "",
-  quantity: "",
-  remarks: "",
-};
-
-const emptyTransfer = {
-  fromShopId: "",
-  toShopId: "",
-  controlNumber: "",
-  remarks: "Stock Transfer.....",
-};
-
-const PAGE_SIZE = 20;
 
 const getId = (value) => {
   if (!value) return "";
   if (typeof value === "string") return value;
-  if (value._id) return value._id.toString();
-  return value.toString?.() || "";
+  return value._id?.toString?.() || value.toString?.() || "";
 };
 
 const getMovementDateRange = (dateFilters) => {
   if (dateFilters.dateMode === "month" && dateFilters.month) {
     const [year, month] = dateFilters.month.split("-").map(Number);
-    const startDate = `${dateFilters.month}-01`;
-    const endDate = new Date(Date.UTC(year, month, 0))
-      .toISOString()
-      .slice(0, 10);
 
-    return { startDate, endDate };
+    return {
+      startDate: `${dateFilters.month}-01`,
+      endDate: new Date(Date.UTC(year, month, 0))
+        .toISOString()
+        .slice(0, 10),
+    };
   }
 
   return {
@@ -103,13 +60,12 @@ function App() {
   const token = useSelector(selectToken);
   const user = useSelector(selectUser);
   const isLoggedIn = useSelector(selectIsLoggedIn);
-  const authMessage = useSelector(selectAuthMessage);
   const authError = useSelector(selectAuthError);
-
-  const productImportInputRef = useRef(null);
+  const authMessage = useSelector(selectAuthMessage);
+  const shops = useSelector(selectCatalogShops);
 
   const [activeView, setActiveView] = useState("stock");
-  const [shopId, setShopId] = useState(user?.shopId || "");
+  const [shopId, setShopId] = useState(() => getId(user?.shopId));
   const [dateFilters, setDateFilters] = useState({
     dateMode: "month",
     month: currentMonth(),
@@ -119,359 +75,66 @@ function App() {
   const [busyKey, setBusyKey] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [products, setProducts] = useState([]);
-  const [shops, setShops] = useState([]);
-  const [transferDestinationShops, setTransferDestinationShops] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [units, setUnits] = useState([]);
-  const [adminUnitForm, setAdminUnitForm] = useState({
-    name: "",
-    shortName: "",
-    baseUnitId: "",
-    factor: 1,
-    isDecimalAllowed: true,
-    isActive: true,
-  });
-
-  const [selectedUnitId, setSelectedUnitId] = useState("");
-
-  const [adminShopForm, setAdminShopForm] = useState({
-    name: "",
-    code: "",
-    location: "",
-    phone: "",
-    isActive: true,
-  });
-  const [adminProductForm, setAdminProductForm] = useState({
-    itemCode: "",
-    description: "",
-    categoryId: "",
-    defaultUnitId: "",
-    barcode: "",
-    isPerishable: false,
-    minimumStock: "",
-    reorderLevel: "",
-    notes: "",
-  });
-  const [selectedShopId, setSelectedShopId] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [transfers, setTransfers] = useState([]);
-  const [movements, setMovements] = useState([]);
-  const [transferPagination, setTransferPagination] = useState({
-    total: 0,
-    page: 1,
-    pages: 1,
-    limit: PAGE_SIZE,
-  });
-  const [addProductSearch, setAddProductSearch] = useState("");
-  const [addSearchProducts, setAddSearchProducts] = useState([]);
-  const [transferProductSearch, setTransferProductSearch] = useState("");
-  const [transferSearchProducts, setTransferSearchProducts] = useState([]);
-  const [transferSearchBusy, setTransferSearchBusy] = useState(false);
-  const [addStock, setAddStock] = useState(emptyAddStock);
-  const [transfer, setTransfer] = useState(() => ({
-    ...emptyTransfer,
-    fromShopId: user?.shopId || "",
-  }));
-
-  const [transferItems, setTransferItems] = useState([]);
-  const [activeModal, setActiveModal] = useState(null);
-  const [selectedTransferDetail, setSelectedTransferDetail] = useState(null);
 
   const isAdmin = user?.role === "admin";
-  const isShopkeeper = user?.role === "shop_keeper";
-  const canManage = isAdmin || isShopkeeper;
 
-  const selectedProduct = useMemo(
-    () =>
-      addSearchProducts.find((product) => product._id === addStock.productId) ||
-      products.find((product) => product._id === addStock.productId),
-    [addStock.productId, addSearchProducts, products],
+  const updateNotice = useCallback(({ error: nextError = "", message: nextMessage = "" }) => {
+    setError(nextError);
+    setMessage(nextMessage);
+  }, []);
+
+  const loadMovements = useCallback(
+    (search = "") =>
+      dispatch(
+        fetchMovements({
+          shopId,
+          ...getMovementDateRange(dateFilters),
+          search,
+        }),
+      ).unwrap(),
+    [dateFilters, dispatch, shopId],
   );
 
-  const selectedTransferProduct = useMemo(() => {
-    return (
-      transferSearchProducts.find(
-        (product) => product._id === transfer.productId,
-      ) ||
-      products.find((product) => product._id === transfer.productId) ||
-      null
-    );
-  }, [transferSearchProducts, products, transfer.productId]);
+  const handleLogout = useCallback(() => {
+    dispatch(logout());
+    dispatch(clearCatalog());
+    dispatch(clearMovements());
+    dispatch(clearTransfers());
+  }, [dispatch]);
 
-  const filteredAddProducts = useMemo(() => {
-    const needle = addProductSearch.trim().toLowerCase();
-    if (!needle) return products;
+  useEffect(() => {
+    if (!token) return;
 
-    return addSearchProducts;
-  }, [addProductSearch, addSearchProducts, products]);
+    const loadInitialData = async () => {
+      setBusyKey("initial-load");
+      setError("");
 
-  const handleAddProductSearch = async (value) => {
-    setAddProductSearch(value);
-    const search = value.trim();
-
-    if (!search) {
-      setAddSearchProducts([]);
-      return;
-    }
-
-    try {
-      const data = await searchProducts(token, search, 20);
-      setAddSearchProducts(data.data || []);
-    } catch (searchError) {
-      console.error("Product search failed:", searchError);
-      setAddSearchProducts([]);
-    }
-  };
-  
-  const assignedShopId = useMemo(
-    () => getId(user?.shopId) || getId(shopId),
-    [user?.shopId, shopId],
-  );
-
-  const sourceShops = useMemo(() => {
-    if (!isAdmin && assignedShopId) {
-      const ownShop = shops.filter(
-        (shop) => getId(shop._id) === assignedShopId,
-      );
-      return ownShop.length ? ownShop : shops;
-    }
-
-    return shops;
-  }, [shops, isAdmin, assignedShopId]);
-
-  const destinationShops = useMemo(() => {
-    const excludedShopId = getId(transfer.fromShopId) || assignedShopId;
-
-    return transferDestinationShops.filter(
-      (shop) => getId(shop._id) !== excludedShopId,
-    );
-  }, [transferDestinationShops, transfer.fromShopId, assignedShopId]);
-
-  const handleTransferProductSearch = async (value) => {
-    setTransferProductSearch(value);
-
-    const search = value.trim();
-
-    if (!search) {
-      setTransferSearchProducts([]);
-      return;
-    }
-
-    try {
-      setTransferSearchBusy(true);
-
-      const data = await searchProducts(token, search, 20);
-
-      setTransferSearchProducts(data.data || []);
-    } catch (searchError) {
-      console.error("Product search failed:", searchError);
-      setTransferSearchProducts([]);
-    } finally {
-      setTransferSearchBusy(false);
-    }
-  };
-
-  const handleMarkDelivered = async (transfer) => {
-    if (!token || !transfer?._id) return;
-
-    setBusyKey(`deliver-transfer-${transfer._id}`);
-    setError("");
-
-    try {
-      const response = await markTransferDelivered({
-        token,
-        transferId: transfer._id,
-      });
-
-      setTransfers((current) =>
-        current.map((item) =>
-          item._id === transfer._id
-            ? {
-                ...item,
-                ...response.data,
-                status: "delivered",
-              }
-            : item,
-        ),
-      );
-      await loadMovements();
-    } catch (error) {
-      setError(error.message || "Failed to mark transfer as delivered");
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleCancelTransfer = async (transfer) => {
-    if (!token || !transfer?._id) return;
-
-    setBusyKey(`cancel-transfer-${transfer._id}`);
-    setError("");
-
-    try {
-      const response = await cancelTransfer({
-        token,
-        transferId: transfer._id,
-      });
-
-      setTransfers((current) =>
-        current.map((item) =>
-          item._id === transfer._id
-            ? {
-                ...item,
-                ...response.data,
-                status: "cancelled",
-              }
-            : item,
-        ),
-      );
-      await loadMovements();
-    } catch (error) {
-      setError(error.message || "Failed to cancel transfer");
-    } finally {
-      setBusyKey("");
-    }
-  };
-  const isTransferSubmitDisabled =
-    !transfer.fromShopId ||
-    !transfer.toShopId ||
-    transfer.fromShopId === transfer.toShopId ||
-    transferItems.length === 0;
-
-  const loadProducts = async (authToken = token, search = "") => {
-    const data = await getProducts(authToken, search);
-    setProducts(data.data || []);
-  };
-
-  const loadShops = async (authToken = token, search = "") => {
-    const data = await getShops(authToken, search);
-    setShops(data.data || []);
-  };
-
-  const loadUsers = async (authToken = token, search = "") => {
-    const data = await getUsers(authToken, search);
-    setUsers(data.users || []);
-  };
-
-  const loadTransferDestinationShops = async (authToken = token) => {
-    const data = await getTransferDestinationShops(authToken);
-    setTransferDestinationShops(data.data || []);
-  };
-
-  const loadCategories = async (authToken = token) => {
-    const data = await getCategories(authToken);
-    setCategories(data.data || []);
-  };
-
-  const loadUnits = async (authToken = token) => {
-    const data = await getUnits(authToken);
-    setUnits(data.data || []);
-  };
-
-  const loadTransfers = async ({
-    authToken = token,
-    page = 1,
-    append = false,
-    search = "",
-    status = "",
-  } = {}) => {
-    const data = await getTransfers({
-      token: authToken,
-      page,
-      limit: PAGE_SIZE,
-      search,
-      status,
-    });
-
-    setTransfers((current) =>
-      append ? [...current, ...(data.data || [])] : data.data || [],
-    );
-    setTransferPagination({
-      total: data.pagination?.total || 0,
-      page: data.pagination?.page || page,
-      pages: data.pagination?.pages || 1,
-      limit: data.pagination?.limit || PAGE_SIZE,
-    });
-  };
-
-  const loadMovements = async ({
-    authToken = token,
-    targetShopId = shopId,
-    search = "",
-  } = {}) => {
-    const dateRange = getMovementDateRange(dateFilters);
-    const data = await getMovements({
-      token: authToken,
-      shopId: targetShopId,
-      ...dateRange,
-      search,
-    });
-
-    setMovements(data.data || []);
-  };
-
-useEffect(() => {
-  if (!token) return;
-
-  const loadInitialData = async () => {
-    setBusyKey("initial-load");
-    setError("");
-
-    try {
-      const requests = [
-        loadProducts(token),
-        loadShops(token),
-        loadTransferDestinationShops(token),
-        loadCategories(token),
-        loadUnits(token),
-        loadTransfers({ authToken: token }),
-        loadMovements({ authToken: token }),
-      ];
-
-      // Users are admin-only
-      if (isAdmin) {
-        requests.push(loadUsers(token));
+      try {
+        await Promise.all([
+          dispatch(fetchCatalogProducts()).unwrap(),
+          dispatch(fetchCatalogShops()).unwrap(),
+          dispatch(fetchCatalogTransferDestinationShops()).unwrap(),
+          dispatch(fetchCatalogCategories()).unwrap(),
+          dispatch(fetchCatalogUnits()).unwrap(),
+          dispatch(fetchTransfers()).unwrap(),
+        ]);
+      } catch (loadError) {
+        setError(loadError.message || "Failed to load dashboard data.");
+      } finally {
+        setBusyKey("");
       }
+    };
 
-      await Promise.all(requests);
-    } catch (loadError) {
-      setError(loadError.message || "Failed to load dashboard data.");
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  loadInitialData();
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [token, isAdmin]);
+    loadInitialData();
+  }, [dispatch, token]);
 
   useEffect(() => {
     if (!token) return;
 
     loadMovements().catch((loadError) => {
-      setError(loadError.message);
+      setError(loadError.message || "Failed to load stock movements.");
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFilters, shopId, token]);
-
-  const handleLogout = () => {
-    dispatch(logout());
-
-    setProducts([]);
-    setShops([]);
-    setTransfers([]);
-    setMovements([]);
-
-    setTransferPagination({
-      total: 0,
-      page: 1,
-      pages: 1,
-      limit: PAGE_SIZE,
-    });
-  };
+  }, [loadMovements, token]);
 
   useEffect(() => {
     if (!message && !error) return;
@@ -482,1144 +145,80 @@ useEffect(() => {
     }, 5000);
 
     return () => clearTimeout(timer);
-  }, [message, error]);
+  }, [error, message]);
 
   useEffect(() => {
     const loginTime = localStorage.getItem("inventoryLoginTime");
 
-    if (!loginTime || !token) {
-      return;
-    }
+    if (!loginTime || !token) return;
 
-    const TWELVE_HOURS = 12 * 60 * 60 * 1000;
-    const elapsedTime = Date.now() - Number(loginTime);
-    const remainingTime = TWELVE_HOURS - elapsedTime;
+    const remainingTime = 12 * 60 * 60 * 1000 - (Date.now() - Number(loginTime));
 
-    // Already expired
     if (remainingTime <= 0) {
       handleLogout();
       return;
     }
 
-    // Automatically logout when 12 hours are completed
-    const logoutTimer = setTimeout(() => {
-      handleLogout();
-    }, remainingTime);
-
-    return () => {
-      clearTimeout(logoutTimer);
-    };
-  }, [token]);
-
-  const handleShopIdChange = (value) => {
-    setShopId(value);
-    setTransfer((current) => ({
-      ...current,
-      fromShopId: value || user?.shopId || "",
-      productId: "",
-      unitId: "",
-      quantity: "",
-    }));
-  };
+    const logoutTimer = setTimeout(handleLogout, remainingTime);
+    return () => clearTimeout(logoutTimer);
+  }, [handleLogout, token]);
 
   const handleRefreshInventory = async () => {
     setBusyKey("inventory-refresh");
-    setError("");
-    setMessage("");
+    updateNotice({});
 
     try {
       await Promise.all([
-        loadProducts(),
-        loadShops(),
-        loadTransferDestinationShops(),
-        loadCategories(),
-        loadUnits(),
-        loadTransfers(),
+        dispatch(fetchCatalogProducts()).unwrap(),
+        dispatch(fetchCatalogShops()).unwrap(),
+        dispatch(fetchCatalogTransferDestinationShops()).unwrap(),
+        dispatch(fetchCatalogCategories()).unwrap(),
+        dispatch(fetchCatalogUnits()).unwrap(),
+        dispatch(fetchTransfers()).unwrap(),
         loadMovements(),
       ]);
       setMessage("Stock actions refreshed.");
     } catch (refreshError) {
-      setError(refreshError.message);
+      setError(refreshError.message || "Failed to refresh inventory.");
     } finally {
       setBusyKey("");
     }
-  };
-
-  const resetShopForm = () => {
-    setAdminShopForm({
-      name: "",
-      code: "",
-      location: "",
-      phone: "",
-      isActive: true,
-    });
-    setSelectedShopId("");
-  };
-
-  const resetProductForm = () => {
-    setAdminProductForm({
-      itemCode: "",
-      description: "",
-      categoryId: "",
-      defaultUnitId: "",
-      barcode: "",
-      isPerishable: false,
-      minimumStock: "",
-      reorderLevel: "",
-      notes: "",
-    });
-    setSelectedProductId("");
-  };
-
-  const resetUnitForm = () => {
-    setAdminUnitForm({
-      name: "",
-      shortName: "",
-      baseUnitId: "",
-      factor: 1,
-      isDecimalAllowed: true,
-      isActive: true,
-    });
-
-    setSelectedUnitId("");
-  };
-
-  const handleShopFormChange = (field, value) => {
-    setAdminShopForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
-
-  const handleProductFormChange = (field, value) => {
-    setAdminProductForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
-
-  const handleUnitFormChange = (field, value) => {
-    setAdminUnitForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
-
-  const handleShopEdit = (shop) => {
-    setSelectedShopId(shop._id);
-    setAdminShopForm({
-      name: shop.name || "",
-      code: shop.code || "",
-      location: shop.location || "",
-      phone: shop.phone || "",
-      isActive: Boolean(shop.isActive),
-    });
-  };
-
-  const handleProductEdit = (product) => {
-    setSelectedProductId(product._id);
-    setAdminProductForm({
-      itemCode: product.itemCode || "",
-      description: product.description || "",
-      categoryId: product.categoryId?._id || product.categoryId || "",
-      defaultUnitId: product.defaultUnitId?._id || product.defaultUnitId || "",
-      barcode: product.barcode || "",
-      isPerishable: Boolean(product.isPerishable),
-      minimumStock: product.minimumStock ?? "",
-      reorderLevel: product.reorderLevel ?? "",
-      notes: product.notes || "",
-    });
-  };
-
-  const handleUnitEdit = (unit) => {
-    setSelectedUnitId(unit._id);
-
-    setAdminUnitForm({
-      name: unit.name || "",
-      shortName: unit.shortName || "",
-      baseUnitId: unit.baseUnitId?._id || unit.baseUnitId || "",
-      factor: unit.factor ?? 1,
-      isDecimalAllowed: Boolean(unit.isDecimalAllowed),
-      isActive: Boolean(unit.isActive),
-    });
-  };
-
-  const handleDeleteShop = async (shopId) => {
-    if (!window.confirm("Delete this branch?")) return;
-    setBusyKey("admin-shop-delete");
-    setError("");
-    setMessage("");
-
-    try {
-      await deleteShop({ token, shopId });
-      setMessage("Branch deleted successfully.");
-      await Promise.all([
-        loadShops(),
-        loadTransferDestinationShops(),
-        loadTransfers(),
-      ]);
-      resetShopForm();
-    } catch (deleteError) {
-      setError(deleteError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleDeleteProduct = async (productId) => {
-    if (!window.confirm("Delete this product?")) return;
-    setBusyKey("admin-product-delete");
-    setError("");
-    setMessage("");
-
-    try {
-      await deleteProduct({ token, productId });
-      setMessage("Product deleted successfully.");
-      await loadProducts();
-      resetProductForm();
-    } catch (deleteError) {
-      setError(deleteError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleDeleteUnit = async (unitId) => {
-    if (!window.confirm("Delete this unit?")) return;
-
-    setBusyKey("admin-unit-delete");
-    setError("");
-    setMessage("");
-
-    try {
-      await deleteUnit({ token, unitId });
-
-      setMessage("Unit deleted successfully.");
-
-      await loadUnits();
-
-      resetUnitForm();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleUserUpdate = async (userId, body) => {
-    if (!token || !userId) return;
-
-    setBusyKey(`user-update-${userId}`);
-    setError("");
-    setMessage("");
-
-    try {
-      const data = await updateUser({
-        token,
-        userId,
-        body,
-      });
-
-      setUsers((current) =>
-        current.map((item) =>
-          item._id === userId
-            ? {
-                ...item,
-                ...data.user,
-              }
-            : item,
-        ),
-      );
-
-      setMessage("User updated successfully.");
-    } catch (updateError) {
-      setError(updateError.message || "Failed to update user.");
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleDeleteUser = async (userId) => {
-    if (!token || !userId) return;
-
-    if (!window.confirm("Deactivate this user?")) return;
-
-    setBusyKey(`user-delete-${userId}`);
-    setError("");
-    setMessage("");
-
-    try {
-      await deleteUser({
-        token,
-        userId,
-      });
-
-      setUsers((current) =>
-        current.map((item) =>
-          item._id === userId
-            ? {
-                ...item,
-                isActive: false,
-              }
-            : item,
-        ),
-      );
-
-      setMessage("User deactivated successfully.");
-    } catch (deleteError) {
-      setError(deleteError.message || "Failed to deactivate user.");
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleShopFormSubmit = async (event) => {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-
-    const trimmedName = adminShopForm.name.trim();
-    const trimmedCode = adminShopForm.code.trim();
-
-    if (!trimmedName || !trimmedCode) {
-      setError("Branch name and code are required.");
-      return;
-    }
-
-    setBusyKey(selectedShopId ? "admin-shop-update" : "admin-shop-create");
-
-    try {
-      const body = {
-        ...adminShopForm,
-        name: trimmedName,
-        code: trimmedCode,
-      };
-
-      if (selectedShopId) {
-        await updateShop({ token, shopId: selectedShopId, body });
-        setMessage("Branch updated successfully.");
-      } else {
-        const result = await createShop({ token, body });
-        setMessage("Branch created successfully.");
-
-        if (user?.role === "shop_keeper" && result.user?.shopId) {
-          const updatedUser = {
-            ...user,
-            shopId: result.user.shopId,
-          };
-          localStorage.setItem("inventoryUser", JSON.stringify(updatedUser));
-          setUser(updatedUser);
-          setShopId(result.user.shopId);
-          setTransfer((current) => ({
-            ...current,
-            fromShopId: result.user.shopId,
-          }));
-        }
-      }
-
-      await Promise.all([loadShops(), loadTransferDestinationShops()]);
-
-      setActiveModal(null);
-      resetShopForm();
-    } catch (shopError) {
-      setError(shopError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleImportProducts = async (event) => {
-    const file = event.target.files?.[0];
-
-    // Allow selecting the same file again later
-    event.target.value = "";
-
-    if (!file) return;
-
-    const extension = file.name.split(".").pop()?.toLowerCase();
-
-    if (!["xlsx", "xls"].includes(extension)) {
-      setError("Please select an Excel file (.xlsx or .xls).");
-      return;
-    }
-
-    setBusyKey("product-import");
-    setError("");
-    setMessage("");
-
-    try {
-      const data = await importProducts({
-        token,
-        file,
-      });
-
-      const summary = data.summary || {};
-
-      // Reload products so newly imported products appear immediately
-      await loadProducts();
-
-      setMessage(
-        `Import completed. Created: ${summary.created || 0}, ` +
-          `Skipped: ${summary.skipped || 0}, ` +
-          `Failed: ${summary.failed || 0}.`,
-      );
-
-      // Keep detailed results in browser console for now
-      if (summary.failed > 0) {
-        console.log("Failed product rows:", data.failed);
-      }
-
-      if (summary.skipped > 0) {
-        console.log("Skipped product rows:", data.skipped);
-      }
-    } catch (importError) {
-      setError(importError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const openProductImport = () => {
-    if (!isLoggedIn || busyKey) return;
-
-    productImportInputRef.current?.click();
-  };
-
-  const handleProductFormSubmit = async (event) => {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-
-    const trimmedCode = adminProductForm.itemCode.trim();
-    const trimmedDescription = adminProductForm.description.trim();
-
-    if (
-      !trimmedCode ||
-      !trimmedDescription ||
-      !adminProductForm.defaultUnitId
-    ) {
-      setError("Product code, description, and unit are required.");
-      return;
-    }
-
-    setBusyKey(
-      selectedProductId ? "admin-product-update" : "admin-product-create",
-    );
-
-    try {
-      const body = {
-        ...adminProductForm,
-        itemCode: trimmedCode,
-        description: trimmedDescription,
-        minimumStock: Number(adminProductForm.minimumStock || 0),
-        reorderLevel: Number(adminProductForm.reorderLevel || 0),
-      };
-
-      if (selectedProductId) {
-        await updateProduct({
-          token,
-          productId: selectedProductId,
-          body,
-        });
-
-        setMessage("Product updated successfully.");
-      } else {
-        await createProduct({
-          token,
-          body,
-        });
-
-        setMessage("Product created successfully.");
-      }
-
-      await loadProducts();
-      setActiveModal(null);
-      resetProductForm();
-    } catch (productError) {
-      setError(productError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleUnitFormSubmit = async (event) => {
-    event.preventDefault();
-
-    setError("");
-    setMessage("");
-
-    if (!adminUnitForm.name.trim() || !adminUnitForm.shortName.trim()) {
-      setError("Name and Short Name are required.");
-      return;
-    }
-
-    setBusyKey(selectedUnitId ? "admin-unit-update" : "admin-unit-create");
-
-    try {
-      const body = {
-        ...adminUnitForm,
-        factor: Number(adminUnitForm.factor),
-      };
-
-      if (selectedUnitId) {
-        await updateUnit({
-          token,
-          unitId: selectedUnitId,
-          body,
-        });
-
-        setMessage("Unit updated successfully.");
-      } else {
-        await createUnit({
-          token,
-          body,
-        });
-
-        setMessage("Unit created successfully.");
-      }
-
-      await loadUnits();
-
-      resetUnitForm();
-
-      setActiveModal(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleProductChange = (productId) => {
-    const product =
-      addSearchProducts.find((item) => item._id === productId) ||
-      products.find((item) => item._id === productId);
-    const unitId = product?.defaultUnitId?._id || product?.defaultUnitId || "";
-    setAddStock((current) => ({
-      ...current,
-      productId,
-      unitId,
-    }));
-  };
-
-  const handleDeleteTransfer = async (transfer) => {
-    if (!token || !transfer?._id) return;
-
-    setBusyKey(`delete-transfer-${transfer._id}`);
-    setError("");
-
-    try {
-      await deleteTransfer({
-        token,
-        transferId: transfer._id,
-      });
-
-      setTransfers((current) =>
-        current.filter((item) => item._id !== transfer._id),
-      );
-
-      setTransferPagination((current) => ({
-        ...current,
-        total: Math.max(0, current.total - 1),
-      }));
-    } catch (error) {
-      setError(error.message || "Failed to delete transfer");
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleTransferProductChange = (productId) => {
-    const product =
-      transferSearchProducts.find((item) => item._id === productId) ||
-      products.find((item) => item._id === productId);
-
-    const unitId = product?.defaultUnitId?._id || product?.defaultUnitId || "";
-
-    setTransfer((current) => ({
-      ...current,
-      productId,
-      unitId,
-      quantity: "",
-      selectedProduct: product || null,
-    }));
-
-    setTransferProductSearch("");
-    setTransferSearchProducts([]);
-  };
-
-  const handleAddStockChange = (field, value) => {
-    setAddStock((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
-
-  const handleTransferChange = (field, value) => {
-    setTransfer((current) => ({
-      ...current,
-      [field]: value,
-    }));
-
-    if (field === "fromShopId") {
-      setTransferItems([]);
-      setTransferProductSearch("");
-      setTransferSearchProducts([]);
-    }
-  };
-
-  const openAddStockModal = () => {
-    setError("");
-    setMessage("");
-    setAddProductSearch("");
-    setActiveModal("add-stock");
-  };
-
-  const openTransferModal = () => {
-    setError("");
-    setMessage("");
-
-    setTransfer({
-      ...emptyTransfer,
-      fromShopId: assignedShopId || "",
-    });
-
-    setTransferItems([]);
-    setTransferProductSearch("");
-    setTransferSearchProducts([]);
-
-    setActiveModal("transfer-stock");
-  };
-
-  const openCreateShopModal = () => {
-    setError("");
-    setMessage("");
-    resetShopForm();
-    setActiveModal("shop-create");
-  };
-
-  const openCreateProductModal = () => {
-    setError("");
-    setMessage("");
-    resetProductForm();
-    setActiveModal("product-create");
-  };
-
-  const openCreateUnitModal = () => {
-    setError("");
-    setMessage("");
-    resetUnitForm();
-    setActiveModal("unit-create");
-  };
-
-  const closeModal = () => {
-    if (busyKey) return;
-    setActiveModal(null);
-  };
-
-  const handleAddStock = async (event) => {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-
-    const quantity = Number(addStock.quantity);
-    if (
-      !addStock.productId ||
-      !addStock.unitId ||
-      !Number.isFinite(quantity) ||
-      quantity <= 0
-    ) {
-      setError("Select a product and enter a quantity greater than 0.");
-      return;
-    }
-
-    const productName = formatProductName(selectedProduct);
-    const confirmed = window.confirm(
-      `Add ${quantity} ${selectedProduct?.defaultUnitId?.shortName || ""} of ${productName} to this branch?`,
-    );
-    if (!confirmed) return;
-
-    setBusyKey("add-stock");
-
-    try {
-      const body = {
-        productId: addStock.productId,
-        unitId: addStock.unitId,
-        quantity,
-        remarks: addStock.remarks,
-      };
-
-      if (shopId.trim()) {
-        body.shopId = shopId.trim();
-      }
-
-      const data = await addInventoryStock({ token, body });
-
-      setMessage(data.message || "Incoming stock recorded successfully.");
-      setAddStock(emptyAddStock);
-      setActiveModal(null);
-      await loadMovements();
-    } catch (stockError) {
-      setError(stockError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleAddTransferItem = () => {
-    setError("");
-    setMessage("");
-
-    const quantity = Number(transfer.quantity);
-
-    if (!transfer.productId) {
-      setError("Please select a product.");
-      return;
-    }
-
-    if (!transfer.unitId) {
-      setError("Please select a unit.");
-      return;
-    }
-
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setError("Please enter a quantity greater than 0.");
-      return;
-    }
-
-    const alreadyAdded = transferItems.some(
-      (item) => item.productId === transfer.productId,
-    );
-
-    if (alreadyAdded) {
-      setError(
-        "This product is already added. Remove it first if you want to change the quantity.",
-      );
-      return;
-    }
-
-    // Get the selected product object
-    const product =
-      transfer.selectedProduct ||
-      transferSearchProducts.find((item) => item._id === transfer.productId) ||
-      products.find((item) => item._id === transfer.productId);
-
-    if (!product) {
-      setError("Product information could not be found.");
-      return;
-    }
-
-    setTransferItems((current) => [
-      ...current,
-      {
-        productId: transfer.productId,
-
-        // IMPORTANT:
-        // Keep the complete product object with the transfer item
-        product,
-
-        unitId: transfer.unitId,
-        quantity,
-      },
-    ]);
-
-    // Clear product fields so another product can be added
-    setTransfer((current) => ({
-      ...current,
-      productId: "",
-      selectedProduct: null,
-      unitId: "",
-      quantity: "",
-    }));
-
-    setTransferProductSearch("");
-    setTransferSearchProducts([]);
-
-    setMessage("Product added to transfer list.");
-  };
-
-  const handleRemoveTransferItem = (productId) => {
-    setTransferItems((current) =>
-      current.filter((item) => item.productId !== productId),
-    );
-  };
-
-  const handleTransferStock = async (event) => {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-
-    if (!transfer.fromShopId || !transfer.toShopId) {
-      setError("Please select source and destination shops.");
-      return;
-    }
-
-    if (transfer.fromShopId === transfer.toShopId) {
-      setError("Source and destination shops must be different.");
-      return;
-    }
-
-    if (!transferItems.length) {
-      setError("Please add at least one product to transfer.");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Are you sure you want to transfer ${transferItems.length} product${
-        transferItems.length > 1 ? "s" : ""
-      } to the selected branch?`,
-    );
-
-    if (!confirmed) return;
-
-    setBusyKey("transfer-stock");
-
-    try {
-      const data = await createTransfer({
-        token,
-        body: {
-          fromShopId: transfer.fromShopId,
-          toShopId: transfer.toShopId,
-          controlNumber: transfer.controlNumber,
-          remarks: transfer.remarks,
-          items: transferItems,
-        },
-      });
-
-      setMessage(
-        data.message ||
-          `${transferItems.length} product${
-            transferItems.length > 1 ? "s" : ""
-          } transferred successfully.`,
-      );
-
-      setTransfer({
-        ...emptyTransfer,
-        fromShopId: assignedShopId || "",
-      });
-
-      setTransferItems([]);
-
-      setTransferProductSearch("");
-      setTransferSearchProducts([]);
-
-      setActiveModal(null);
-
-      await Promise.all([loadTransfers(), loadMovements()]);
-    } catch (transferError) {
-      setError(transferError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleLoadMoreTransfers = async ({ search = "", status = "" } = {}) => {
-    if (transferPagination.page >= transferPagination.pages) return;
-
-    setBusyKey("transfers-load-more");
-    setError("");
-
-    try {
-      await loadTransfers({
-        page: transferPagination.page + 1,
-        append: true,
-        search,
-        status,
-      });
-    } catch (loadError) {
-      setError(loadError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleTransferSearch = async ({ search = "", status = "" }) => {
-    setBusyKey("transfers-search");
-    setError("");
-
-    try {
-      await loadTransfers({ search, status });
-    } catch (searchError) {
-      setError(searchError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleMovementSearch = async (search = "") => {
-    setBusyKey("movements-search");
-    setError("");
-
-    try {
-      await loadMovements({ search });
-    } catch (searchError) {
-      setError(searchError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleAdminProductSearch = async (search = "") => {
-    setBusyKey("admin-products-search");
-    setError("");
-
-    try {
-      await loadProducts(token, search);
-    } catch (searchError) {
-      setError(searchError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const buildReportUrl = (report) => {
-    const params = new URLSearchParams();
-
-    if (report.useShop && shopId.trim()) {
-      params.set("shopId", shopId.trim());
-    }
-
-    if (report.useDateMode) {
-      if (dateFilters.dateMode === "month" && dateFilters.month) {
-        params.set("month", dateFilters.month);
-      }
-      if (dateFilters.dateMode === "range") {
-        if (dateFilters.startDate)
-          params.set("startDate", dateFilters.startDate);
-        if (dateFilters.endDate) params.set("endDate", dateFilters.endDate);
-      }
-    }
-
-    if (report.useDates) {
-      if (dateFilters.startDate) params.set("startDate", dateFilters.startDate);
-      if (dateFilters.endDate) params.set("endDate", dateFilters.endDate);
-    }
-
-    const query = params.toString();
-    return `${API_BASE_URL}${report.path}${query ? `?${query}` : ""}`;
-  };
-
-  const handleDownload = async (report) => {
-    setError("");
-    setMessage("");
-    setBusyKey(report.key);
-
-    try {
-      const filename = await downloadReport({
-        token,
-        url: buildReportUrl(report),
-        fallbackFilename: report.filename,
-      });
-      setMessage(`${filename} downloaded.`);
-    } catch (downloadError) {
-      setError(downloadError.message);
-    } finally {
-      setBusyKey("");
-    }
-  };
-
-  const handleSelectTransfer = (transfer) => {
-    setSelectedTransferDetail(transfer);
   };
 
   return (
-    <main className="app-shell">
-      <input
-        ref={productImportInputRef}
-        type="file"
-        accept=".xlsx,.xls"
-        style={{ display: "none" }}
-        onChange={handleImportProducts}
-      />
-      {/* <Sidebar
-        authMode={authMode}
-        busyKey={busyKey}
-        dateFilters={dateFilters}
-        email={email}
-        isLoggedIn={isLoggedIn}
-        name={name}
-        onNameChange={setName}
-        onEmailChange={setEmail}
-        onLogin={handleLogin}
-        onLogout={handleLogout}
-        onSignup={handleSignup}
-        onForgotPassword={handleForgotPassword}
-        onPasswordChange={setPassword}
-        onConfirmPasswordChange={setConfirmPassword}
-        onAuthModeChange={setAuthMode}
-        onRefreshInventory={handleRefreshInventory}
-        onShopIdChange={handleShopIdChange}
-        password={password}
-        confirmPassword={confirmPassword}
-        setDateFilters={setDateFilters}
-        shopId={shopId}
-        shops={shops}
-        user={user}
-      /> */}
-
-      {/* previosly sidebar is commented out because using old state */}
-      <Sidebar
-        busyKey={busyKey}
-        dateFilters={dateFilters}
-        isLoggedIn={isLoggedIn}
-        onRefreshInventory={handleRefreshInventory}
-        onShopIdChange={handleShopIdChange}
-        setDateFilters={setDateFilters}
-        shopId={shopId}
-        shops={shops}
-        user={user}
-      />
-
-      <section className="workspace">
-        <WorkspaceHeader activeView={activeView} isLoggedIn={isLoggedIn} />
-        <ViewTabs
-          activeView={activeView}
-          isAdmin={isAdmin}
-          onChange={setActiveView}
+    <WorkspaceShell
+      activeView={activeView}
+      busyKey={busyKey}
+      dateFilters={dateFilters}
+      error={error || authError}
+      isAdmin={isAdmin}
+      isLoggedIn={isLoggedIn}
+      message={message || authMessage}
+      onRefresh={handleRefreshInventory}
+      onShopChange={setShopId}
+      onViewChange={setActiveView}
+      setDateFilters={setDateFilters}
+      shopId={shopId}
+      shops={shops}
+      user={user}
+    >
+      {activeView === "stock" ? (
+        <StockFeature
+          dateFilters={dateFilters}
+          onNotice={updateNotice}
+          shopId={shopId}
         />
-        <Notice error={error || authError} message={message || authMessage} />
-        {activeView === "stock" ? (
-          <StockView
-            busyKey={busyKey}
-            isLoggedIn={isLoggedIn}
-            movements={movements}
-            transfers={transfers}
-            onOpenAddStock={openAddStockModal}
-            onOpenTransferStock={openTransferModal}
-            onSearchMovements={handleMovementSearch}
-            onMarkDelivered={handleMarkDelivered}
-            onCancelTransfer={handleCancelTransfer}
-            user={user}
-          />
-        ) : activeView === "reports" ? (
-          <ReportsView
-            busyKey={busyKey}
-            isLoggedIn={isLoggedIn}
-            isAdmin={isAdmin}
-            onDownload={handleDownload}
-          />
-        ) : activeView === "admin" ? (
-          <AdminView
-            busyKey={busyKey}
-            categories={categories}
-            isLoggedIn={isLoggedIn}
-            isShopkeeper={isShopkeeper}
-            user={user}
-            users={users}
-            products={products}
-            shops={shops}
-            units={units}
-            onUserUpdate={handleUserUpdate}
-            onUserDelete={handleDeleteUser}
-            onImportProducts={openProductImport}
-            onCreateUnit={openCreateUnitModal}
-            onUnitEdit={(unit) => {
-              handleUnitEdit(unit);
-              setActiveModal("unit-edit");
-            }}
-            onUnitDelete={handleDeleteUnit}
-            onCreateShop={openCreateShopModal}
-            onCreateProduct={openCreateProductModal}
-            onProductDelete={handleDeleteProduct}
-            onProductSearch={handleAdminProductSearch}
-            onProductEdit={(product) => {
-              handleProductEdit(product);
-              setActiveModal("product-edit");
-            }}
-            onShopDelete={handleDeleteShop}
-            onShopEdit={(shop) => {
-              handleShopEdit(shop);
-              setActiveModal("shop-edit");
-            }}
-          />
-        ) : (
-          <TransfersView
-            busyKey={busyKey}
-            onLoadMoreTransfers={handleLoadMoreTransfers}
-            onSearchTransfers={handleTransferSearch}
-            onSelectTransfer={handleSelectTransfer}
-            onDeleteTransfer={handleDeleteTransfer}
-            transferPagination={transferPagination}
-            transfers={transfers}
-            user={user}
-          />
-        )}
-        <AddStockModal
-          addStock={addStock}
-          busyKey={busyKey}
-          isOpen={activeModal === "add-stock"}
-          onAddStockChange={handleAddStockChange}
-          onClose={closeModal}
-          onProductChange={handleProductChange}
-          onProductSearchChange={handleAddProductSearch}
-          onSubmit={handleAddStock}
-          productSearch={addProductSearch}
-          products={filteredAddProducts}
-          selectedProduct={selectedProduct}
+      ) : activeView === "reports" ? (
+        <ReportsFeature dateFilters={dateFilters} shopId={shopId} />
+      ) : activeView === "admin" ? (
+        <AdminFeature
+          onNotice={updateNotice}
+          onShopAssigned={setShopId}
         />
-        <TransferStockModal
-          busyKey={busyKey}
-          destinationShops={destinationShops}
-          isOpen={activeModal === "transfer-stock"}
-          isSubmitDisabled={isTransferSubmitDisabled}
-          onAddItem={handleAddTransferItem}
-          onClose={closeModal}
-          onProductChange={handleTransferProductChange}
-          onProductSearchChange={handleTransferProductSearch}
-          onRemoveItem={handleRemoveTransferItem}
-          onSubmit={handleTransferStock}
-          onTransferChange={handleTransferChange}
-          productSearch={transferProductSearch}
-          selectedProduct={selectedTransferProduct}
-          sourceShops={sourceShops}
-          transferableProducts={transferSearchProducts}
-          transfer={transfer}
-          transferItems={transferItems}
-          products={products}
-          units={units}
-        />
-        <AdminShopModal
-          busyKey={busyKey}
-          isOpen={activeModal === "shop-create" || activeModal === "shop-edit"}
-          isLoggedIn={isLoggedIn}
-          onClose={closeModal}
-          onChange={handleShopFormChange}
-          onSubmit={handleShopFormSubmit}
-          shopForm={adminShopForm}
-          isEdit={activeModal === "shop-edit"}
-        />
-        <AdminProductModal
-          busyKey={busyKey}
-          categories={categories}
-          isOpen={
-            activeModal === "product-create" || activeModal === "product-edit"
-          }
-          isLoggedIn={isLoggedIn}
-          onClose={closeModal}
-          onChange={handleProductFormChange}
-          onSubmit={handleProductFormSubmit}
-          productForm={adminProductForm}
-          units={units}
-          isEdit={activeModal === "product-edit"}
-        />
-        <AdminUnitModal
-          busyKey={busyKey}
-          isOpen={activeModal === "unit-create" || activeModal === "unit-edit"}
-          isLoggedIn={isLoggedIn}
-          onClose={closeModal}
-          onChange={handleUnitFormChange}
-          onSubmit={handleUnitFormSubmit}
-          unitForm={adminUnitForm}
-          units={units}
-          isEdit={activeModal === "unit-edit"}
-        />
-        <TransferDetailModal
-          isOpen={Boolean(selectedTransferDetail)}
-          onClose={() => setSelectedTransferDetail(null)}
-          transfer={selectedTransferDetail}
-        />
-      </section>
-    </main>
+      ) : (
+        <TransfersView />
+      )}
+    </WorkspaceShell>
   );
 }
 

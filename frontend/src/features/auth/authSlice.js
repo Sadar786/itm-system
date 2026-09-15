@@ -338,6 +338,10 @@ const authSlice = createSlice({
       state.forgotOtpSent = false;
     },
 
+    setCurrentUser: (state, action) => {
+      state.user = action.payload;
+    },
+
 
     // --------------------------------------------------------
     // Clear Error
@@ -691,6 +695,7 @@ const authSlice = createSlice({
 
 export const {
   logout,
+  setCurrentUser,
   clearAuthError,
   clearAuthMessage,
   resetSignupOtp,

@@ -1,24 +1,27 @@
 import { useEffect, useState } from "react";
 
 export function Notice({ message, error }) {
-  const [visible, setVisible] = useState(false);
+  const content = error || message;
+  const noticeKey = `${error ? "error" : "message"}:${content || ""}`;
+  const [dismissedKey, setDismissedKey] = useState("");
 
   useEffect(() => {
-    if (!message && !error) {
-      setVisible(false);
-      return;
-    }
+    if (!content) return undefined;
 
-    setVisible(true);
-
+    const resetTimer = setTimeout(() => {
+      setDismissedKey("");
+    }, 0);
     const timer = setTimeout(() => {
-      setVisible(false);
+      setDismissedKey(noticeKey);
     }, 5000);
 
-    return () => clearTimeout(timer);
-  }, [message, error]);
+    return () => {
+      clearTimeout(resetTimer);
+      clearTimeout(timer);
+    };
+  }, [content, noticeKey]);
 
-  if (!visible) return null;
+  if (!content || dismissedKey === noticeKey) return null;
 
   return (
     <div className={error ? "notice error" : "notice"}>

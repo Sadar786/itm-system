@@ -9,19 +9,20 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { cancelExistingTransfer, deliverTransfer, selectActiveTransferId, selectTransfers } from "../transfers/transferSlice";
+import { selectMovements } from "./stockSlice";
 
 export function StockView({
-  busyKey,
   isLoggedIn,
-  movements,
-  onOpenAddStock,
   onOpenTransferStock,
   onSearchMovements,
-  onMarkDelivered,
-  onCancelTransfer,
-  transfers,
   user,
 }) {
+  const dispatch = useDispatch();
+  const reduxTransfers = useSelector(selectTransfers);
+  const reduxMovements = useSelector(selectMovements);
+  const activeTransferId = useSelector(selectActiveTransferId);
   const [stockFilter, setStockFilter] = useState("IN");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,7 +39,7 @@ export function StockView({
     (value?._id || value)?.toString?.() || "";
 
   const transfersById = new Map(
-    transfers.map((transfer) => [getId(transfer), transfer]),
+    reduxTransfers.map((transfer) => [getId(transfer), transfer]),
   );
 
   /*
@@ -54,7 +55,7 @@ export function StockView({
    * will become ONE transfer object.
    */
   const groupedTransfers = Object.values(
-    movements.reduce((groups, movement) => {
+    reduxMovements.reduce((groups, movement) => {
       /*
        * transferNo should normally be the same for all
        * products belonging to one transfer.
@@ -106,8 +107,6 @@ export function StockView({
   /*
    * Count UNIQUE transfers instead of individual movement records.
    */
-  const transferCount = groupedTransfers.length;
-
   /*
    * Filter by Stock In / Stock Out
    */
@@ -500,13 +499,13 @@ export function StockView({
                                 <button
                                   type="button"
                                   className="deliver-menu-action"
-                                  disabled={busyKey === `deliver-transfer-${transfer.transferId}`}
+                                  disabled={activeTransferId === transfer.transferId}
                                   onClick={() => {
                                     setOpenActionMenu("");
-                                    onMarkDelivered({ _id: transfer.transferId });
+                                    dispatch(deliverTransfer(transfer.transferId));
                                   }}
                                 >
-                                  {busyKey === `deliver-transfer-${transfer.transferId}`
+                                  {activeTransferId === transfer.transferId
                                     ? "Updating..."
                                     : isShopkeeper &&
                                         transfer.movementType === "TRANSFER_IN"
@@ -516,15 +515,15 @@ export function StockView({
                                 <button
                                   type="button"
                                   className="danger-menu-action"
-                                  disabled={busyKey === `cancel-transfer-${transfer.transferId}`}
+                                  disabled={activeTransferId === transfer.transferId}
                                   onClick={() => {
                                     if (window.confirm("Are you sure you want to cancel this transfer?")) {
                                       setOpenActionMenu("");
-                                      onCancelTransfer({ _id: transfer.transferId });
+                                      dispatch(cancelExistingTransfer(transfer.transferId));
                                     }
                                   }}
                                 >
-                                  {busyKey === `cancel-transfer-${transfer.transferId}`
+                                  {activeTransferId === transfer.transferId
                                     ? "Cancelling..."
                                     : "Mark Cancel"}
                                 </button>
