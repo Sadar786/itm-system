@@ -1,4 +1,5 @@
 import express from "express";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
 import cors from "cors";
 import AppError from "./utils/AppError.js";
 import errorMiddleware from "./middleware/errorMiddleware.js";
@@ -17,6 +18,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use("/api/analytics", analyticsRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/shops", shopRoutes);

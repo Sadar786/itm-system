@@ -1,8 +1,8 @@
-import { FileSpreadsheet, PackagePlus, Repeat2, Settings2, Trash2 } from 'lucide-react'
+import { FileSpreadsheet, PackagePlus, Repeat2, Settings2, Trash2, ChartColumn } from 'lucide-react'
 
 export function ViewTabs({ activeView, onChange, isAdmin }) {
   return (
-    <div className={`view-tabs ${isAdmin ? 'five-tabs' : 'four-tabs'}`} aria-label="Main view">
+    <div className={`view-tabs ${isAdmin ? 'six-tabs' : 'five-tabs'}`} aria-label="Main view">
       <button
         type="button"
         className={activeView === 'stock' ? 'active' : ''}
@@ -36,6 +36,7 @@ export function ViewTabs({ activeView, onChange, isAdmin }) {
         <Trash2 size={16} />
         Wastage
       </button>
+      <button type="button" className={activeView === "analytics" ? "active" : ""} onClick={() => onChange("analytics")}><ChartColumn size={16} />Analytics</button>
       {isAdmin ? (
         console.log("isAdmin from ViewTabs:", isAdmin), // Log the value of isAdmin for debugging
         <button

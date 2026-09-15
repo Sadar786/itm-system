@@ -31,6 +31,7 @@ import { WastageFeature } from "./features/wastage/WastageFeature";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 import { currentMonth, todayDate } from "./utils/format";
 import "./App.css";
+import { AnalyticsView } from "./features/analytics/AnalyticsView";
 
 const getId = (value) => {
   if (!value) return "";
@@ -212,6 +213,8 @@ function App() {
         />
       ) : activeView === "wastage" ? (
         <WastageFeature key={token || "guest"} shopId={shopId} dateRange={getMovementDateRange(dateFilters)} search={wastageSearch} onSearchChange={setWastageSearch} />
+      ) : activeView === "analytics" ? (
+        <AnalyticsView key={token || "guest"} shopId={shopId} dateRange={getMovementDateRange(dateFilters)} />
       ) : activeView === "reports" ? (
         <ReportsFeature dateFilters={dateFilters} shopId={shopId} wastageSearch={wastageSearch} wastageDateRange={getMovementDateRange(dateFilters)} />
       ) : activeView === "admin" ? (
