@@ -35,6 +35,7 @@ export function Sidebar({
       {/* Authentication is now handled directly by Redux */}
       <SessionPanel />
 
+      {isLoggedIn && <>
       <BranchPanel
         busyKey={busyKey}
         isLoggedIn={isLoggedIn}
@@ -75,6 +76,7 @@ export function Sidebar({
         }
         startDate={dateFilters.startDate}
       />
+      </>}
 
 {/* footer */}
       <Footer />

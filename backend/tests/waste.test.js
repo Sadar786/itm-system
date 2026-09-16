@@ -1,19 +1,101 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import mongoose from "mongoose";
+import ExcelJS from "exceljs";
 import Waste from "../src/models/Waste.js";
 import WasteItem from "../src/models/WasteItem.js";
 import Shop from "../src/models/Shop.js";
 import Product from "../src/models/Product.js";
 import Unit from "../src/models/Unit.js";
 import { createWasteService, resolveWasteShop } from "../src/services/wasteService.js";
-import { getWaste, getWastes } from "../src/controllers/wasteController.js";
+import { getWaste, getWastes, updateWasteStatus, deleteWaste, exportWastes } from "../src/controllers/wasteController.js";
+import wasteRoutes from "../src/routes/wasteRoutes.js";
 
 const id = () => new mongoose.Types.ObjectId().toString();
 const user = { _id: id(), role: "shop_keeper", shopId: id() };
 const payload = () => ({ reason: "Spoiled", items: [{ productId: id(), unitId: id(), quantity: 20 }] });
 const invoke = (handler, req) => new Promise((resolve, reject) => {
   handler(req, { json: resolve }, reject);
+});
+
+test("status and deletion routes reject shopkeepers and allow admins", () => {
+  for (const path of ["/:id/status", "/:id"]) {
+    const route = wasteRoutes.stack.find((layer) => layer.route?.path === path && (layer.route.methods.patch || layer.route.methods.delete)).route;
+    const authorize = route.stack[0].handle;
+    let allowed = false;
+    const res = { status(code) { assert.equal(code, 403); return this; }, json(body) { assert.equal(body.success, false); } };
+    authorize({ user }, res, () => { allowed = true; });
+    assert.equal(allowed, false);
+    authorize({ user: { role: "admin" } }, res, () => { allowed = true; });
+    assert.equal(allowed, true);
+  }
+});
+
+test("status updates validate input and return missing-record errors", async (t) => {
+  const update = t.mock.method(Waste, "findOneAndUpdate", async (query, change) => {
+    assert.deepEqual(query.$or, [{ status: "pending" }, { status: { $exists: false } }]);
+    return { _id: query._id, ...change.$set };
+  });
+  const exists = t.mock.method(Waste, "exists", async () => null);
+  const req = { params: { id: id() }, body: { status: "approved" } };
+  assert.equal((await invoke(updateWasteStatus, req)).data.status, "approved");
+  for (const status of [undefined, "pending", "delivered", { $ne: null }]) {
+    await assert.rejects(invoke(updateWasteStatus, { ...req, body: { status } }), { statusCode: 400 });
+  }
+  assert.equal(update.mock.callCount(), 1);
+  update.mock.mockImplementation(async () => null);
+  await assert.rejects(invoke(updateWasteStatus, req), { statusCode: 404 });
+  exists.mock.mockImplementation(async () => ({ _id: req.params.id }));
+  for (const status of ["approved", "cancelled"]) {
+    await assert.rejects(invoke(updateWasteStatus, { ...req, body: { status } }), { statusCode: 409 });
+  }
+});
+
+test("Excel export requires approved status even when the request asks for cancelled", async (t) => {
+  const records = ["pending", "approved", "cancelled"].map((status) => ({ _id: id(), wasteNo: status, status }));
+  t.mock.method(Waste, "countDocuments", async (query) => {
+    assert.equal(query.status, "approved");
+    assert.equal(query.shopId, user.shopId);
+    return 1;
+  });
+  t.mock.method(Waste, "find", (query) => {
+    assert.equal(query.status, "approved");
+    const chain = { sort: () => chain, skip: () => chain, limit: () => chain, populate: () => chain,
+      lean: async () => records.filter((record) => record.status === query.status) };
+    return chain;
+  });
+  t.mock.method(WasteItem, "find", () => {
+    const chain = { populate: () => chain, lean: async () => [] };
+    return chain;
+  });
+  const buffer = await new Promise((resolve, reject) => {
+    exportWastes({ user, query: { status: "cancelled" } }, { setHeader() {}, send: resolve }, reject);
+  });
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  const sheet = workbook.getWorksheet("Wastage");
+  assert.equal(sheet.rowCount, 2);
+  assert.equal(sheet.getCell("A2").value, "approved");
+});
+
+test("deletion shares a transaction for header and items and closes it on failure", async (t) => {
+  const session = { withTransaction: async (fn) => fn(), endSession: t.mock.fn() };
+  t.mock.method(mongoose, "startSession", async () => session);
+  const wasteId = id();
+  t.mock.method(Waste, "findOneAndDelete", async (query, options) => {
+    assert.equal(query._id, wasteId);
+    assert.equal(options.session, session);
+    return { _id: wasteId };
+  });
+  const removeItems = t.mock.method(WasteItem, "deleteMany", async (query, options) => {
+    assert.equal(query.wasteId, wasteId);
+    assert.equal(options.session, session);
+  });
+  const req = { params: { id: wasteId } };
+  assert.equal((await invoke(deleteWaste, req)).success, true);
+  removeItems.mock.mockImplementation(async () => { throw new Error("Delete failed"); });
+  await assert.rejects(invoke(deleteWaste, req), /Delete failed/);
+  assert.equal(session.endSession.mock.callCount(), 2);
 });
 
 test("branch access uses assigned shop and rejects cross-branch requests", () => {

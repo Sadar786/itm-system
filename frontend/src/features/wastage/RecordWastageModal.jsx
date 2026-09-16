@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus, Trash2, RefreshCw, Send } from "lucide-react";
 import { Modal } from "../../components/Modal";
 import { formatProductName } from "../../utils/format";
+import { getWastageDateRange } from "./wastageDate";
 
 export function RecordWastageModal({ isOpen, onClose, busy, error, onSubmit,
   isAdmin, branch, onBranchChange, assignedName, shops, date, onDateChange,
@@ -10,6 +11,7 @@ export function RecordWastageModal({ isOpen, onClose, busy, error, onSubmit,
   const [productId, setProductId] = useState("");
   const [unitId, setUnitId] = useState("");
   const [quantity, setQuantity] = useState("");
+  const { minDate, maxDate } = getWastageDateRange();
   const selectedProduct = products.find((product) => product._id === productId);
   const matches = products.filter((product) =>
     !items.some((item) => item.productId === product._id) &&
@@ -34,7 +36,10 @@ export function RecordWastageModal({ isOpen, onClose, busy, error, onSubmit,
               {shops.map((shop) => <option key={shop._id} value={shop._id}>{shop.code ? `${shop.code} - ${shop.name}` : shop.name}</option>)}
             </select> : <input readOnly value={assignedName} />}
           </label>
-          <label>Date<input required type="date" value={date} onChange={(event) => onDateChange(event.target.value)} /></label>
+          <label>Date
+            <input required type="date" min={minDate} max={maxDate} value={date} aria-describedby="wastage-date-help" onChange={(event) => onDateChange(event.target.value)} />
+            <small id="wastage-date-help">Today or the previous 3 days only (UAE time).</small>
+          </label>
         </div>
         <label>Reason<input required value={reason} onChange={(event) => onReasonChange(event.target.value)} placeholder="For example, spoiled or damaged" /></label>
         <div className="product-autocomplete">

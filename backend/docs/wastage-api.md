@@ -8,7 +8,7 @@ Wastage records are independent of stock and transfers.
 ```json
 {
   "shopId": "<branch ObjectId>",
-  "wasteDate": "2026-09-15T10:00:00+05:00",
+  "wasteDate": "2026-09-15T10:00:00+04:00",
   "reason": "Spoiled",
   "remarks": "Optional notes",
   "items": [
@@ -20,6 +20,11 @@ Wastage records are independent of stock and transfers.
 Shopkeepers may omit shopId: their assigned branch is used. Admins must supply it.
 wasteDate defaults to now. reason and 1–100 items are required. Products must be
 unique within one record; quantities must be finite and at least 0.000001.
+For both admins and shopkeepers, wasteDate must fall on today or one of the
+previous three calendar days in Asia/Dubai (UAE time). Future dates and
+dates four or more days ago return 400 before opening a database transaction.
+This limit applies to recording wastage only; history and export date filters
+can still include older records.
 The branch and products must exist and be active, and units must exist.
 The server generates wasteNo and takes createdBy from the authenticated user.
 Returns 201 with `{ success, message, data: { waste, items } }`.
@@ -44,7 +49,18 @@ Creation uses a MongoDB transaction, requiring a replica set or sharded deployme
 (as with the existing transfer transaction). Header and items commit together.
 The incomplete `/api/waste_items` routes are no longer mounted: their unscoped
 reads and direct item writes would bypass branch access and record validation.
-Use `/api/wastes` for complete records. No edit/delete endpoints are exposed.
+Use `/api/wastes` for complete records.
 
-Run focused checks with `node --test tests/waste.test.js` from backend.
+## Status and deletion (admin only)
+
+Records default to `pending`, including older records without a stored status.
+`PATCH /api/wastes/:id/status` accepts `{ "status": "approved" }` with allowed
+values `approved` and `cancelled`. Only admins may change pending records;
+approved and cancelled statuses are final (further changes return 409).
+`GET /api/wastes/export` exports only approved records within the selected filters.
+`DELETE /api/wastes/:id` deletes the record and its items in one transaction.
+Both endpoints return 404 for missing records and 403 for shopkeepers.
+Neither operation changes inventory.
+
+Run focused checks with `node --test tests/waste.test.js tests/waste-date.test.js` from backend.
 These use mocked database operations; live database rollback is not covered.

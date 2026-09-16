@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import mongoose from "mongoose";
 import Waste from "../models/Waste.js";
 import WasteItem from "../models/WasteItem.js";
 import Product from "../models/Product.js";
@@ -10,14 +11,48 @@ import { createWasteService, resolveWasteShop, validateId, parseWasteDate } from
 const populateWaste = (query) => query.populate("shopId", "name code").populate("createdBy", "name email");
 const populateItems = (query) => query.populate("productId", "itemCode description").populate("unitId", "name shortName");
 
+export const updateWasteStatus = asyncHandler(async (req, res) => {
+  const id = validateId(req.params.id, "waste id");
+  const status = req.body?.status;
+  if (!["approved", "cancelled"].includes(status)) {
+    throw new AppError("Status must be approved or cancelled", 400);
+  }
+  const waste = await Waste.findOneAndUpdate(
+    { _id: id, $or: [{ status: "pending" }, { status: { $exists: false } }] },
+    { $set: { status } },
+    { new: true, runValidators: true },
+  );
+  if (!waste) {
+    if (!await Waste.exists({ _id: id })) throw new AppError("Wastage not found", 404);
+    throw new AppError("Approved or cancelled wastage status cannot be changed", 409);
+  }
+  res.json({ success: true, message: "Wastage status updated", data: waste });
+});
+
+export const deleteWaste = asyncHandler(async (req, res) => {
+  const id = validateId(req.params.id, "waste id");
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const waste = await Waste.findOneAndDelete({ _id: id }, { session });
+      if (!waste) throw new AppError("Wastage not found", 404);
+      await WasteItem.deleteMany({ wasteId: id }, { session });
+    });
+  } finally {
+    await session.endSession();
+  }
+  res.json({ success: true, message: "Wastage deleted successfully" });
+});
+
 export const createWaste = asyncHandler(async (req, res) => {
   const data = await createWasteService(req.user, req.body);
   res.status(201).json({ success: true, message: "Wastage recorded successfully", data });
 });
 
-const listWastes = async (req) => {
+const listWastes = async (req, approvedOnly = false) => {
   const shopId = resolveWasteShop(req.user, req.query.shopId);
   const query = shopId ? { shopId } : {};
+  if (approvedOnly) query.status = "approved";
   const { startDate, endDate, productId } = req.query;
   if (req.query.search !== undefined) {
     if (typeof req.query.search !== "string" || req.query.search.length > 200) throw new AppError("Invalid search", 400);
@@ -68,7 +103,7 @@ const listWastes = async (req) => {
     if (!grouped.has(key)) grouped.set(key, []);
     grouped.get(key).push(item);
   }
-  return { success: true, data: wastes.map((waste) => ({ ...waste, items: grouped.get(waste._id.toString()) || [] })), pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
+  return { success: true, data: wastes.map((waste) => ({ ...waste, status: waste.status || "pending", items: grouped.get(waste._id.toString()) || [] })), pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
 };
 
 export const getWastes = asyncHandler(async (req, res) => { res.json(await listWastes(req)); });
@@ -96,7 +131,7 @@ export const exportWastes = asyncHandler(async (req, res) => {
   let page = 1;
   let pages = 1;
   do {
-    const result = await listWastes({ user: req.user, query: { ...req.query, page: String(page), limit: "100" } });
+    const result = await listWastes({ user: req.user, query: { ...req.query, page: String(page), limit: "100" } }, true);
     for (const waste of result.data) {
       for (const item of waste.items.length ? waste.items : [{}]) {
         sheet.addRow({ reference: waste.wasteNo, date: waste.wasteDate, recorded: waste.createdAt,

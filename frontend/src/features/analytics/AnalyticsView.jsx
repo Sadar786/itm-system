@@ -1,4 +1,5 @@
-﻿import { useState } from "react";
+import { LoadingSpinner } from "../../components/LoadingSpinner";
+import { useState } from "react";
 import { ArrowLeftRight, CheckCircle2, Clock3, RefreshCw, Trash2, XCircle } from "lucide-react";
 import { AnalyticsTable } from "./AnalyticsTable";
 import { selectCatalogShops } from "../catalog/catalogSlice";
@@ -41,7 +42,7 @@ export function AnalyticsView({ shopId, dateRange }) {
   const [selected, setSelected] = useState(null);
   const { token, result, key, current, refresh } = useAnalytics({ shopId, dateRange });
   if (!token) return <section className="panel">Sign in to view analytics.</section>;
-  if (!current) return <p role="status">Loading analytics...</p>;
+  if (!current) return <LoadingSpinner label="Loading analytics..." />;
   if (result.error) return <section className="panel"><p role="alert">{result.error}</p><button type="button" onClick={refresh}>Retry</button></section>;
   const { summary, transfers, wastes, products, branches = [], pending = [], pagination } = result.data;
   const scopeName = user?.role === "admin"

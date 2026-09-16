@@ -11,7 +11,6 @@ import {
 } from "./features/auth/authSlice";
 import { AdminFeature } from "./features/admin/AdminFeature";
 import {
-  clearCatalog,
   fetchCatalogCategories,
   fetchCatalogProducts,
   fetchCatalogShops,
@@ -21,14 +20,14 @@ import {
 } from "./features/catalog/catalogSlice";
 import { ReportsFeature } from "./features/reports/ReportsFeature";
 import { StockFeature } from "./features/stock/StockFeature";
-import { clearMovements, fetchMovements } from "./features/stock/stockSlice";
+import { fetchMovements } from "./features/stock/stockSlice";
 import {
-  clearTransfers,
   fetchTransfers,
 } from "./features/transfers/transferSlice";
 import { TransfersView } from "./features/transfers/TransfersView";
 import { WastageFeature } from "./features/wastage/WastageFeature";
 import { WorkspaceShell } from "./components/WorkspaceShell";
+import { ConfirmationProvider } from "./components/ConfirmationProvider";
 import { currentMonth, todayDate } from "./utils/format";
 import "./App.css";
 import { AnalyticsView } from "./features/analytics/AnalyticsView";
@@ -57,7 +56,7 @@ const getMovementDateRange = (dateFilters) => {
   };
 };
 
-function App() {
+function WorkspaceApp() {
   const dispatch = useDispatch();
   const token = useSelector(selectToken);
   const user = useSelector(selectUser);
@@ -100,9 +99,6 @@ function App() {
 
   const handleLogout = useCallback(() => {
     dispatch(logout());
-    dispatch(clearCatalog());
-    dispatch(clearMovements());
-    dispatch(clearTransfers());
   }, [dispatch]);
 
   useEffect(() => {
@@ -230,4 +226,7 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  const token = useSelector(selectToken);
+  return <ConfirmationProvider key={token || "guest"}><WorkspaceApp /></ConfirmationProvider>;
+}

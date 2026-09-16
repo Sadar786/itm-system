@@ -1,3 +1,4 @@
+import { useConfirm } from "../../components/confirmationContext";
 import { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -61,6 +62,7 @@ const getMovementDateRange = (dateFilters) => {
 };
 
 export function useStockManagement({ dateFilters, onNotice, shopId }) {
+  const confirm = useConfirm();
   const dispatch = useDispatch();
   const token = useSelector(selectToken);
   const user = useSelector(selectUser);
@@ -261,9 +263,7 @@ export function useStockManagement({ dateFilters, onNotice, shopId }) {
     }
 
     const productName = formatProductName(selectedProduct);
-    const confirmed = window.confirm(
-      `Add ${quantity} ${selectedProduct?.defaultUnitId?.shortName || ""} of ${productName} to this branch?`,
-    );
+    const confirmed = await confirm({ title: "Add stock?", message: `Add ${quantity} ${selectedProduct?.defaultUnitId?.shortName || ""} of ${productName} to this branch?`, confirmLabel: "Add stock", destructive: false });
     if (!confirmed) return;
 
     setBusyKey("add-stock");
@@ -371,11 +371,7 @@ export function useStockManagement({ dateFilters, onNotice, shopId }) {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Are you sure you want to transfer ${transferItems.length} product${
-        transferItems.length > 1 ? "s" : ""
-      } to the selected branch?`,
-    );
+    const confirmed = await confirm({ title: "Transfer stock?", message: `Transfer ${transferItems.length} product${transferItems.length > 1 ? "s" : ""} to the selected branch?`, confirmLabel: "Transfer stock", destructive: false });
     if (!confirmed) return;
 
     setBusyKey("transfer-stock");

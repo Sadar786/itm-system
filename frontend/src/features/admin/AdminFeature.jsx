@@ -1,3 +1,4 @@
+import { useConfirm } from "../../components/confirmationContext";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -70,6 +71,7 @@ const emptyUnitForm = {
 };
 
 export function AdminFeature({ onNotice, onShopAssigned }) {
+  const confirm = useConfirm();
   const dispatch = useDispatch();
   const token = useSelector(selectToken);
   const user = useSelector(selectUser);
@@ -349,7 +351,7 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
   };
 
   const deleteShop = async (shopId) => {
-    if (!window.confirm("Delete this branch?")) return;
+    if (!await confirm({ title: "Delete branch?", message: "Are you sure you want to delete this branch? This cannot be undone.", confirmLabel: "Delete branch" })) return;
 
     setBusyKey("admin-shop-delete");
     clearNotice();
@@ -371,7 +373,7 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
   };
 
   const deleteProduct = async (productId) => {
-    if (!window.confirm("Delete this product?")) return;
+    if (!await confirm({ title: "Delete product?", message: "Are you sure you want to delete this product? This cannot be undone.", confirmLabel: "Delete product" })) return;
 
     setBusyKey("admin-product-delete");
     clearNotice();
@@ -389,7 +391,7 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
   };
 
   const deleteUnit = async (unitId) => {
-    if (!window.confirm("Delete this unit?")) return;
+    if (!await confirm({ title: "Delete unit?", message: "Are you sure you want to delete this unit? This cannot be undone.", confirmLabel: "Delete unit" })) return;
 
     setBusyKey("admin-unit-delete");
     clearNotice();

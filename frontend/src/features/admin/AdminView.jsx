@@ -1,6 +1,8 @@
+import { useConfirm } from "../../components/confirmationContext";
 //src/features/admin/AdminView.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { LoadingSpinner } from "../../components/LoadingSpinner";
 import {
   FileSpreadsheet,
   Pencil,
@@ -33,10 +35,16 @@ export function AdminView({
   onUnitDelete,
   onNotice,
 }) {
+  const confirm = useConfirm();
   const dispatch = useDispatch();
   const users = useSelector(selectAdminUsers);
   const activeUserId = useSelector(selectAdminActiveUserId);
+  const catalogStatus = useSelector((state) => state.catalog.status);
+  const productSearchStatus = useSelector((state) => state.catalog.adminProductSearch.status);
   const [activeSection, setActiveSection] = useState("branches");
+  const sectionLoading = activeSection === "products"
+    ? catalogStatus.products === "loading" || productSearchStatus === "loading"
+    : catalogStatus[activeSection === "branches" ? "shops" : activeSection] === "loading";
   const [branchSearch, setBranchSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const isFirstProductSearch = useRef(true);
@@ -154,7 +162,7 @@ export function AdminView({
   };
 
   const handleRemoveBranch = async (item) => {
-    if (!window.confirm(`Remove branch from ${item.name}?`)) {
+    if (!await confirm({ title: "Remove assigned branch?", message: `Remove the branch assignment from ${item.name}?`, confirmLabel: "Remove branch" })) {
       return;
     }
 
@@ -282,7 +290,9 @@ export function AdminView({
               ) : null}
             </div>
           </div>
-          <div className="table-wrap admin-table-wrap">
+          <div aria-busy={sectionLoading}>
+            {sectionLoading && <LoadingSpinner label={`Loading ${activeSection}...`} />}
+            <div className="table-wrap admin-table-wrap" hidden={sectionLoading}>
             <table>
               <thead>
                 <tr>
@@ -343,6 +353,7 @@ export function AdminView({
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </section>
       )}
@@ -417,7 +428,9 @@ export function AdminView({
             </div>
           </div>
 
-          <div className="table-wrap admin-table-wrap">
+          <div aria-busy={sectionLoading}>
+            {sectionLoading && <LoadingSpinner label={`Loading ${activeSection}...`} />}
+            <div className="table-wrap admin-table-wrap" hidden={sectionLoading}>
             <table>
               <thead>
                 <tr>
@@ -480,6 +493,7 @@ export function AdminView({
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </section>
       )}
@@ -503,7 +517,9 @@ export function AdminView({
             </button>
           </div>
 
-          <div className="table-wrap admin-table-wrap">
+          <div aria-busy={sectionLoading}>
+            {sectionLoading && <LoadingSpinner label={`Loading ${activeSection}...`} />}
+            <div className="table-wrap admin-table-wrap" hidden={sectionLoading}>
             <table>
               <thead>
                 <tr>
@@ -557,6 +573,7 @@ export function AdminView({
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </section>
       )}
@@ -593,7 +610,9 @@ export function AdminView({
             />
           </div>
 
-          <div className="table-wrap admin-table-wrap">
+          <div aria-busy={sectionLoading}>
+            {sectionLoading && <LoadingSpinner label={`Loading ${activeSection}...`} />}
+            <div className="table-wrap admin-table-wrap" hidden={sectionLoading}>
             <table>
               <thead>
                 <tr>
@@ -796,6 +815,7 @@ export function AdminView({
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </section>
       )}

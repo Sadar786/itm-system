@@ -343,6 +343,12 @@ export const createTransfer = ({ token, body }) =>
 export const createWaste = ({ token, body }) =>
   apiRequest('/wastes', { token, method: 'POST', body })
 
+export const updateWasteStatus = ({ token, id, status }) =>
+  apiRequest(`/wastes/${id}/status`, { token, method: 'PATCH', body: { status } })
+
+export const deleteWaste = ({ token, id }) =>
+  apiRequest(`/wastes/${id}`, { token, method: 'DELETE' })
+
 export const getWastes = ({ token, filters = {}, page = 1, signal }) => {
   const params = new URLSearchParams({ page, limit: 20 })
   for (const [key, value] of Object.entries(filters)) {

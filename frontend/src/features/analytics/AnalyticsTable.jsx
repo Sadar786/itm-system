@@ -1,3 +1,4 @@
+import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { apiJson } from "../../services/api";
@@ -58,7 +59,7 @@ export function AnalyticsTable({ section, title, description, searchPlaceholder,
         </div>
         <label className="analytics-row-limit">Rows
           <select value={query?.limit || 10} aria-label={`Rows per page for ${title}`} onChange={(event) => setQuery({ page: 1, limit: Number(event.target.value), search: search.trim() })}>
-            {[10, 25, 50].map((size) => <option value={size} key={size}>{size}</option>)}
+            {[5, 10, 25, 50].map((size) => <option value={size} key={size}>{size}</option>)}
           </select>
         </label>
       </div>
@@ -71,7 +72,7 @@ export function AnalyticsTable({ section, title, description, searchPlaceholder,
             {columns.map((column) => <td key={column.key} className={column.numeric ? "analytics-number" : undefined}>{column.render(row)}</td>)}
           </tr>)}
           {!rows.length && <tr><td colSpan={columns.length} className="empty-cell analytics-empty">
-            {loading ? <span role="status">Loading {title.toLowerCase()}...</span> : error ? <div role="alert">{error} <button type="button" className="secondary-action" onClick={() => setRetry((value) => value + 1)}>Retry</button></div> : <span>{submittedSearch ? `No results for “${submittedSearch}”. Try another search.` : emptyMessage}</span>}
+            {loading ? <LoadingSpinner label={`Loading ${title.toLowerCase()}...`} /> : error ? <div role="alert">{error} <button type="button" className="secondary-action" onClick={() => setRetry((value) => value + 1)}>Retry</button></div> : <span>{submittedSearch ? `No results for “${submittedSearch}”. Try another search.` : emptyMessage}</span>}
           </td></tr>}
         </tbody>
       </table>

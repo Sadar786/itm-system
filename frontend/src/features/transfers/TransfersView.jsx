@@ -1,15 +1,20 @@
+import { useConfirm } from "../../components/confirmationContext";
 //src/features/transfers/TransfersView.jsx
 import { Search, X } from "lucide-react";
+import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUser } from "../auth/authSlice";
 import { TransferDetailModal } from "./TransferDetailModal";
+import { formatProductName } from "../../utils/format";
 import { fetchTransfers, removeTransfer, selectActiveTransferId, selectTransferPagination, selectTransfers } from "./transferSlice";
 
 export function TransfersView() {
+  const confirm = useConfirm();
   const dispatch = useDispatch();
   const user = useSelector(selectUser);
   const transfers = useSelector(selectTransfers);
+  const loading = useSelector((state) => state.transfers.status === "loading");
   const transferPagination = useSelector(selectTransferPagination);
   const activeTransferId = useSelector(selectActiveTransferId);
   const [searchTerm, setSearchTerm] = useState("");
@@ -145,7 +150,8 @@ export function TransfersView() {
         </div>
       </div>
 
-      <div className="table-wrap">
+      {loading && <LoadingSpinner label="Loading transfers..." />}
+      <div className="table-wrap" hidden={loading}>
         <table>
           <thead className="table-head">
             <tr>
@@ -236,14 +242,20 @@ export function TransfersView() {
                       type="button"
                       className="danger-action"
                       disabled={activeTransferId === transfer._id}
-                      onClick={(event) => {
+                      onClick={async (event) => {
                         event.stopPropagation();
 
-                        const confirmed = window.confirm(
-                          `Are you sure you want to delete transfer ${
-                            transfer.transferNo || ""
-                          }?`,
-                        );
+                        const confirmed = await confirm({
+                          title: "Delete transfer?",
+                          message: "Are you sure you want to delete this transfer? This cannot be undone.",
+                          reference: transfer.transferNo || transfer.controlNumber,
+                          items: (transfer.items || []).map((item) => ({
+                            id: item._id,
+                            name: formatProductName(item.productId) || "Unavailable product",
+                            quantity: `${item.quantity} ${item.unitId?.shortName || item.unitId?.name || ""}`.trim(),
+                          })),
+                          confirmLabel: "Delete transfer",
+                        });
 
                         if (confirmed) {
                           dispatch(removeTransfer(transfer._id));
@@ -275,7 +287,7 @@ export function TransfersView() {
         </table>
       </div>
 
-      {hasMore && (
+      {hasMore && !loading && (
         <div className="table-footer">
           <button
             type="button"

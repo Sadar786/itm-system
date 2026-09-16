@@ -43,11 +43,25 @@ export const parseWasteDate = (value, name) => {
   return new Date(value);
 };
 
+const wasteDateFormatter = new Intl.DateTimeFormat("en", {
+  timeZone: "Asia/Dubai", year: "numeric", month: "2-digit", day: "2-digit",
+});
+
+const wasteCalendarDay = (date) => {
+  const parts = Object.fromEntries(wasteDateFormatter.formatToParts(date).map(({ type, value }) => [type, value]));
+  return Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)) / 86400000;
+};
+
 export const createWasteService = async (user, body = {}) => {
   const shopId = resolveWasteShop(user, body.shopId, true);
   const reason = textField(body.reason, "reason", true);
   const remarks = textField(body.remarks, "remarks");
-  const wasteDate = body.wasteDate === undefined ? new Date() : parseWasteDate(body.wasteDate, "wasteDate");
+  const now = new Date();
+  const wasteDate = body.wasteDate === undefined ? now : parseWasteDate(body.wasteDate, "wasteDate");
+  const daysAgo = wasteCalendarDay(now) - wasteCalendarDay(wasteDate);
+  if (daysAgo < 0 || daysAgo > 3) {
+    throw new AppError("Wastage date must be today or one of the previous 3 days (Asia/Dubai)", 400);
+  }
   if (!Array.isArray(body.items) || !body.items.length || body.items.length > 100) {
     throw new AppError("Provide between 1 and 100 waste items", 400);
   }

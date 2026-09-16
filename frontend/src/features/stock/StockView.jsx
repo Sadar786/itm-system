@@ -1,3 +1,5 @@
+import { useConfirm } from "../../components/confirmationContext";
+import { LoadingSpinner } from "../../components/LoadingSpinner";
 //src/features/stock/StockView.jsx
 import {
   MoreVertical,
@@ -27,6 +29,7 @@ export function StockView({
   onSearchMovements,
   user,
 }) {
+  const confirm = useConfirm();
   const dispatch = useDispatch();
   const reduxTransfers = useSelector(selectTransfers);
   const reduxMovements = useSelector(selectMovements);
@@ -192,7 +195,7 @@ export function StockView({
         Each transfer counts once for the sidebar branch and dates. In and Out
         show its direction; search filters the list below.
       </p>
-      {!current && <p role="status">Loading transfer totals...</p>}
+      {!current && <LoadingSpinner label="Loading transfer totals..." />}
       {current && result.error && (
         <p role="alert">
           {result.error}{" "}
@@ -494,12 +497,8 @@ export function StockView({
                                   disabled={
                                     activeTransferId === transfer.transferId
                                   }
-                                  onClick={() => {
-                                    if (
-                                      window.confirm(
-                                        "Are you sure you want to cancel this transfer?",
-                                      )
-                                    ) {
+                                  onClick={async () => {
+                                    if (await confirm({ title: "Cancel transfer?", message: "Are you sure you want to cancel this transfer?", confirmLabel: "Cancel transfer" })) {
                                       setOpenActionMenu("");
                                       dispatch(
                                         cancelExistingTransfer(

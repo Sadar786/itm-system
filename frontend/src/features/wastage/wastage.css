@@ -18,6 +18,88 @@
 .wastage-table-scroll td { overflow-wrap: anywhere; }
 .wastage-notes { white-space: pre-wrap; }
 .wastage-time { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+.wastage-history > .table-wrap > table > .table-head { border: 0; }
+.wastage-history > .table-wrap > table > .table-head th {
+  padding: 12px 14px;
+  background: #f8fafc;
+  color: #64748b;
+  letter-spacing: 0.04em;
+  border-top: 1px solid var(--line-soft);
+}
+.wastage-history > .table-wrap > table > tbody > tr > td {
+  padding: 14px;
+  vertical-align: middle;
+}
+.wastage-history .wastage-reference {
+  min-width: 150px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  line-height: 1.6;
+  color: #64748b;
+}
+.wastage-history .wastage-status {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: max-content;
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 0 11px;
+  border: 1px solid var(--status-border);
+  border-radius: 999px;
+  background: var(--status-background);
+  color: var(--status-color);
+  white-space: nowrap;
+}
+.wastage-status--pending { --status-color: #92400e; --status-background: #fffbeb; --status-border: #f5d58a; }
+.wastage-status--approved { --status-color: #166534; --status-background: #f0fdf4; --status-border: #bbebcc; }
+.wastage-status--cancelled { --status-color: #b42318; --status-background: #fff1f2; --status-border: #fecdd3; }
+.wastage-status-dot { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: currentColor; }
+.wastage-history .wastage-status-label { margin: 0; color: inherit; font-size: 12px; font-weight: 600; }
+.wastage-history .wastage-status--editable { padding: 0; }
+.wastage-status--editable .wastage-status-dot { position: absolute; left: 11px; pointer-events: none; }
+.wastage-history .wastage-status select {
+  appearance: none;
+  width: 128px;
+  height: 32px;
+  padding: 0 28px 0 24px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.wastage-status select option { background: #fff; color: #1e293b; }
+.wastage-status-chevron { position: absolute; right: 10px; pointer-events: none; }
+.wastage-history .wastage-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  background: #fff;
+  color: #b42318;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.wastage-history .wastage-delete-button:hover:not(:disabled) { background: #fff1f2; border-color: #fda4af; }
+.wastage-history .wastage-status select:hover:not(:disabled) { background: rgb(0 0 0 / 3%); }
+.wastage-history .wastage-delete-button:focus-visible,
+.wastage-history .wastage-status select:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.wastage-history .wastage-delete-button:disabled,
+.wastage-history .wastage-status select:disabled { opacity: 0.55; cursor: wait; }
+.wastage-history > p.wastage-error { color: #b42318; }
 @media (max-width: 700px) {
   .wastage-item { grid-template-columns: minmax(0, 1fr); border-bottom: 1px solid #ddd; padding-bottom: 16px; }
 }

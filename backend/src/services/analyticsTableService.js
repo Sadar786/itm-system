@@ -15,7 +15,7 @@ export function parseAnalyticsTableOptions(query = {}) {
   };
   const page = integer(query.page, 1, "page");
   const limit = integer(query.limit, 10, "limit");
-  if (![10, 25, 50].includes(limit)) throw new AppError("limit must be 10, 25, or 50", 400);
+  if (![5, 10, 25, 50].includes(limit)) throw new AppError("limit must be 5, 10, 25, or 50", 400);
   if (!Number.isSafeInteger((page - 1) * limit)) throw new AppError("page is too large", 400);
   if (query.search !== undefined && (typeof query.search !== "string" || query.search.length > 200)) {
     throw new AppError("search must be text of at most 200 characters", 400);

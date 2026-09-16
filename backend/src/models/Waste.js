@@ -24,6 +24,11 @@ const wasteSchema = new mongoose.Schema(
       required: [true, "Waste reason is required"],
       trim: true,
     },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "cancelled"],
+      default: "pending",
+    },
     remarks: {
       type: String,
       trim: true,

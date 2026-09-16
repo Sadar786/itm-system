@@ -8,12 +8,10 @@ import "./wastage.css";
 import { RecordWastageModal } from "./RecordWastageModal";
 import { Notice } from "../../components/Notice";
 import { WastageHistory } from "./WastageHistory";
+import { getWastageDateRange, isAllowedWastageDate } from "./wastageDate";
 
 const getId = (value) => typeof value === "string" ? value : value?._id || "";
-const localDate = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-};
+const localDate = () => getWastageDateRange().maxDate;
 
 export function WastageFeature({ shopId, dateRange, search, onSearchChange }) {
   const token = useSelector(selectToken);
@@ -45,6 +43,10 @@ export function WastageFeature({ shopId, dateRange, search, onSearchChange }) {
       setError("Choose a branch, date, and reason.");
       return;
     }
+    if (!isAllowedWastageDate(date)) {
+      setError("Wastage date must be today or one of the previous 3 days.");
+      return;
+    }
     if (!items.length || new Set(items.map((item) => item.productId)).size !== items.length || items.some((item) => !item.productId || !item.unitId || !Number.isFinite(Number(item.quantity)) || Number(item.quantity) < 0.000001)) {
       setError("Choose each product once, with a unit and a positive quantity.");
       return;
@@ -54,7 +56,7 @@ export function WastageFeature({ shopId, dateRange, search, onSearchChange }) {
     try {
       const result = await createWaste({ token, body: {
         ...(isAdmin ? { shopId: branchId } : {}),
-        wasteDate: new Date(`${date}T12:00:00`).toISOString(),
+        wasteDate: new Date(`${date}T12:00:00+04:00`).toISOString(),
         reason: reason.trim(), remarks: remarks.trim(),
         items: items.map(({ productId, unitId, quantity }) => ({ productId, unitId, quantity: Number(quantity) })),
       } });
