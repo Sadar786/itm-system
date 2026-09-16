@@ -207,6 +207,7 @@ function App() {
     >
       {activeView === "stock" ? (
         <StockFeature
+          dateRange={getMovementDateRange(dateFilters)}
           dateFilters={dateFilters}
           onNotice={updateNotice}
           shopId={shopId}

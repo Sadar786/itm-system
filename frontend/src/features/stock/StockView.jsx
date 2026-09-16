@@ -1,4 +1,3 @@
-
 //src/features/stock/StockView.jsx
 import {
   MoreVertical,
@@ -10,10 +9,19 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { cancelExistingTransfer, deliverTransfer, selectActiveTransferId, selectTransfers } from "../transfers/transferSlice";
+import {
+  cancelExistingTransfer,
+  deliverTransfer,
+  selectActiveTransferId,
+  selectTransfers,
+} from "../transfers/transferSlice";
 import { selectMovements } from "./stockSlice";
 
+import { useAnalytics } from "../analytics/useAnalytics";
+
 export function StockView({
+  shopId,
+  dateRange,
   isLoggedIn,
   onOpenTransferStock,
   onSearchMovements,
@@ -35,8 +43,7 @@ export function StockView({
     searchHandler.current = onSearchMovements;
   }, [onSearchMovements]);
 
-  const getId = (value) =>
-    (value?._id || value)?.toString?.() || "";
+  const getId = (value) => (value?._id || value)?.toString?.() || "";
 
   const transfersById = new Map(
     reduxTransfers.map((transfer) => [getId(transfer), transfer]),
@@ -64,7 +71,9 @@ export function StockView({
        * does not exist.
        */
       const transferId =
-        movement.referenceType === "Transfer" ? getId(movement.referenceId) : "";
+        movement.referenceType === "Transfer"
+          ? getId(movement.referenceId)
+          : "";
       const relatedTransfer = transfersById.get(transferId);
       const key =
         (transferId &&
@@ -132,10 +141,7 @@ export function StockView({
   }, [searchTerm]);
 
   const filteredTransfers = filteredByType.filter((transfer) => {
-    if (
-      statusFilter !== "all" &&
-      transfer.transferStatus !== statusFilter
-    ) {
+    if (statusFilter !== "all" && transfer.transferStatus !== statusFilter) {
       return false;
     }
 
@@ -147,16 +153,13 @@ export function StockView({
    */
   const recentTransfers = filteredTransfers.slice(0, 20);
 
-  const statusTotals = groupedTransfers.reduce(
-    (totals, transfer) => {
-      if (transfer.transferStatus in totals) {
-        totals[transfer.transferStatus] += 1;
-      }
-
-      return totals;
-    },
-    { in_transit: 0, delivered: 0, cancelled: 0 },
-  );
+  const { result, current, refresh } = useAnalytics({
+    shopId,
+    dateRange,
+    summaryOnly: true,
+  });
+  const statusTotals = current && result?.data ? result.data.summary : {};
+  const count = (name) => statusTotals[name] ?? "?";
 
   const getStatusLabel = (status, movementType) => {
     switch (status) {
@@ -185,47 +188,48 @@ export function StockView({
 
   return (
     <div className="stock-page">
+      <p style={{ fontSize: "small" }}>
+        Each transfer counts once for the sidebar branch and dates. In and Out
+        show its direction; search filters the list below.
+      </p>
+      {!current && <p role="status">Loading transfer totals...</p>}
+      {current && result.error && (
+        <p role="alert">
+          {result.error}{" "}
+          <button type="button" onClick={refresh}>
+            Retry totals
+          </button>
+        </p>
+      )}
       <div className="summary-grid stock-summary-grid">
         <article className="summary-card status-summary total">
           <span>Total Transfers</span>
-          <strong>{groupedTransfers.length}</strong>
+          <strong>{count("total")}</strong>
         </article>
 
         <article className="summary-card status-summary incoming">
           <span>Transfers In</span>
-          <strong>
-            {
-              groupedTransfers.filter(
-                (transfer) => transfer.movementType === "TRANSFER_IN",
-              ).length
-            }
-          </strong>
+          <strong>{count("incoming")}</strong>
         </article>
 
         <article className="summary-card status-summary outgoing">
           <span>Transfers Out</span>
-          <strong>
-            {
-              groupedTransfers.filter(
-                (transfer) => transfer.movementType === "TRANSFER_OUT",
-              ).length
-            }
-          </strong>
+          <strong>{count("outgoing")}</strong>
         </article>
 
         <article className="summary-card status-summary pending">
           <span>Pending (In Transit)</span>
-          <strong>{statusTotals.in_transit}</strong>
+          <strong>{count("in_transit")}</strong>
         </article>
 
         <article className="summary-card status-summary delivered">
           <span>Completed</span>
-          <strong>{statusTotals.delivered}</strong>
+          <strong>{count("delivered")}</strong>
         </article>
 
         <article className="summary-card status-summary cancelled">
           <span>Cancelled</span>
-          <strong>{statusTotals.cancelled}</strong>
+          <strong>{count("cancelled")}</strong>
         </article>
       </div>
 
@@ -234,9 +238,7 @@ export function StockView({
         <button
           type="button"
           className={
-            stockFilter === "IN"
-              ? "primary-action"
-              : "secondary-action"
+            stockFilter === "IN" ? "primary-action" : "secondary-action"
           }
           onClick={() => setStockFilter("IN")}
         >
@@ -248,16 +250,13 @@ export function StockView({
         <button
           type="button"
           className={
-            stockFilter === "OUT"
-              ? "primary-action"
-              : "secondary-action"
+            stockFilter === "OUT" ? "primary-action" : "secondary-action"
           }
           onClick={() => setStockFilter("OUT")}
         >
           <PackageMinus size={16} />
           Stock Out
         </button>
-
 
         {/* TRANSFER STOCK */}
         <button
@@ -336,9 +335,7 @@ export function StockView({
       <section className="stock-table-panel">
         <div className="section-toolbar">
           <div>
-            <h3>
-              {stockFilter === "IN" ? "Stock In" : "Stock Out"}
-            </h3>
+            <h3>{stockFilter === "IN" ? "Stock In" : "Stock Out"}</h3>
 
             <span>
               {searchTerm
@@ -363,14 +360,8 @@ export function StockView({
                 <th>Type</th>
                 <th>Control #</th>
                 <th>Items</th>
-                <th>
-                  Transfered{" "}
-                  {stockFilter === "OUT" ? "From" : "In TO"}
-                </th>
-                <th>
-                  Transfered{" "}
-                  {stockFilter === "IN" ? "From" : "TO"}
-                </th>
+                <th>Transfered {stockFilter === "OUT" ? "From" : "In TO"}</th>
+                <th>Transfered {stockFilter === "IN" ? "From" : "TO"}</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -378,7 +369,7 @@ export function StockView({
             <tbody>
               {recentTransfers.map((transfer) => (
                 <tr
-                className="clickable-row"
+                  className="clickable-row"
                   key={
                     transfer.groupKey ||
                     transfer.transferNo ||
@@ -388,15 +379,11 @@ export function StockView({
                   {/* DATE / TIME */}
                   <td>
                     <strong>
-                      {new Date(
-                        transfer.movementDate,
-                      ).toLocaleDateString()}
+                      {new Date(transfer.movementDate).toLocaleDateString()}
                     </strong>
 
                     <span>
-                      {new Date(
-                        transfer.movementDate,
-                      ).toLocaleTimeString([], {
+                      {new Date(transfer.movementDate).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                         second: "2-digit",
@@ -406,68 +393,51 @@ export function StockView({
 
                   {/* TYPE */}
                   <td>
-                    <strong>
-                      {transfer.movementType || "-"}
-                    </strong>
+                    <strong>{transfer.movementType || "-"}</strong>
 
-                    {transfer.transferNo && (
-                      <span>{transfer.transferNo}</span>
-                    )}
+                    {transfer.transferNo && <span>{transfer.transferNo}</span>}
                   </td>
 
                   <td>{transfer.controlNumber || "-"}</td>
 
                   {/* ALL ITEMS OF THIS TRANSFER */}
                   <td>
-                    {transfer.items?.length ? (
-                      transfer.items.map((movement) => (
-                        <div
-                          className="item-line"
-                          key={movement.movementNo}
-                        >
-                          <strong>
-                            {movement.itemCode || "-"}{" "}
-                            {movement.product || ""}
-                          </strong>
+                    {transfer.items?.length
+                      ? transfer.items.map((movement) => (
+                          <div className="item-line" key={movement.movementNo}>
+                            <strong>
+                              {movement.itemCode || "-"}{" "}
+                              {movement.product || ""}
+                            </strong>
 
-                          <span>
-                            {Number(
-                              movement.quantity || 0,
-                            ).toFixed(3)}{" "}
-                            {movement.unit || ""}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      "-"
-                    )}
+                            <span>
+                              {Number(movement.quantity || 0).toFixed(3)}{" "}
+                              {movement.unit || ""}
+                            </span>
+                          </div>
+                        ))
+                      : "-"}
                   </td>
 
                   {/* SOURCE SHOP */}
                   <td>
-                    <strong>
-                      {transfer.shopCode || "-"}
-                    </strong>
+                    <strong>{transfer.shopCode || "-"}</strong>
 
-                    <span>
-                      {transfer.shopName || ""}
-                    </span>
+                    <span>{transfer.shopName || ""}</span>
                   </td>
 
                   {/* DESTINATION SHOP */}
                   <td>
-                    <strong>
-                      {transfer.relatedShopCode || "-"}
-                    </strong>
+                    <strong>{transfer.relatedShopCode || "-"}</strong>
 
-                    <span>
-                      {transfer.relatedShopName || ""}
-                    </span>
+                    <span>{transfer.relatedShopName || ""}</span>
                   </td>
 
                   <td>
                     <div className="stock-status-cell">
-                      <span className={`transfer-status ${transfer.transferStatus || ""}`}>
+                      <span
+                        className={`transfer-status ${transfer.transferStatus || ""}`}
+                      >
                         {getStatusLabel(
                           transfer.transferStatus,
                           transfer.movementType,
@@ -482,7 +452,9 @@ export function StockView({
                               type="button"
                               className="transfer-menu-trigger"
                               aria-label={`Actions for ${transfer.transferNo || "transfer"}`}
-                              aria-expanded={openActionMenu === transfer.transferId}
+                              aria-expanded={
+                                openActionMenu === transfer.transferId
+                              }
                               onClick={() =>
                                 setOpenActionMenu((current) =>
                                   current === transfer.transferId
@@ -499,10 +471,14 @@ export function StockView({
                                 <button
                                   type="button"
                                   className="deliver-menu-action"
-                                  disabled={activeTransferId === transfer.transferId}
+                                  disabled={
+                                    activeTransferId === transfer.transferId
+                                  }
                                   onClick={() => {
                                     setOpenActionMenu("");
-                                    dispatch(deliverTransfer(transfer.transferId));
+                                    dispatch(
+                                      deliverTransfer(transfer.transferId),
+                                    );
                                   }}
                                 >
                                   {activeTransferId === transfer.transferId
@@ -515,11 +491,21 @@ export function StockView({
                                 <button
                                   type="button"
                                   className="danger-menu-action"
-                                  disabled={activeTransferId === transfer.transferId}
+                                  disabled={
+                                    activeTransferId === transfer.transferId
+                                  }
                                   onClick={() => {
-                                    if (window.confirm("Are you sure you want to cancel this transfer?")) {
+                                    if (
+                                      window.confirm(
+                                        "Are you sure you want to cancel this transfer?",
+                                      )
+                                    ) {
                                       setOpenActionMenu("");
-                                      dispatch(cancelExistingTransfer(transfer.transferId));
+                                      dispatch(
+                                        cancelExistingTransfer(
+                                          transfer.transferId,
+                                        ),
+                                      );
                                     }
                                   }}
                                 >
@@ -542,9 +528,7 @@ export function StockView({
                     {searchTerm
                       ? `No transfers found for "${searchTerm}".`
                       : `No ${
-                          stockFilter === "IN"
-                            ? "stock in"
-                            : "stock out"
+                          stockFilter === "IN" ? "stock in" : "stock out"
                         } records found.`}
                   </td>
                 </tr>

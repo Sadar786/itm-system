@@ -3,12 +3,14 @@ import { StockView } from "./StockView";
 import { TransferStockModal } from "./TransferStockModal";
 import { useStockManagement } from "./useStockManagement";
 
-export function StockFeature({ dateFilters, onNotice, shopId }) {
+export function StockFeature({ dateFilters, dateRange, onNotice, shopId }) {
   const stock = useStockManagement({ dateFilters, onNotice, shopId });
 
   return (
     <>
       <StockView
+        shopId={shopId}
+        dateRange={dateRange}
         busyKey={stock.busyKey}
         isLoggedIn={stock.isLoggedIn}
         onOpenAddStock={stock.openAddStockModal}
