@@ -33,7 +33,6 @@ const shopSchema = new mongoose.Schema(
       shopkeeperId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
       index: true,
     },
   },
