@@ -16,9 +16,9 @@
 .analytics-page .section-toolbar { gap: 16px; padding: 16px; background: #fafcfc; }
 .analytics-page .section-toolbar > div:first-child { min-width: 0; }
 .analytics-page .section-toolbar h3 { margin-bottom: 4px; font-size: 14px; }
-.analytics-page .section-toolbar span { font-size: 12px; line-height: 1.5; }
+.analytics-page .section-toolbar span { font-size: 12px; line-height: 1.5; margin-bottom: 0; margin-top: 0; color: var(--muted); }
 .analytics-page .analytics-header { padding: 0; border: 0; background: transparent; }
-.analytics-page .analytics-header h3 { font-size: 20px; }
+.analytics-page .analytics-header h3 { font-size: 14px; margin-top: 0; margin-bottom: 0; }
 
 .analytics-header .secondary-action {
   display: inline-flex;
@@ -41,14 +41,15 @@
 
 .analytics-context {
   display: flex;
+  font-weight: 500;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 6px 18px;
-  margin-top: -6px;
+  margin-top: -18px;
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .analytics-context > span { display: inline-flex; align-items: center; gap: 6px; }

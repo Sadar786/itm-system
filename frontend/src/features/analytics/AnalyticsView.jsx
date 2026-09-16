@@ -64,7 +64,9 @@ export function AnalyticsView({ shopId, dateRange }) {
   ];
   return <div className="analytics-page">
     <div className="section-toolbar analytics-header">
-      <div><h3>Analytics</h3><span>Each transfer counts once for the selected branch and sidebar dates.</span></div>
+      <div>
+        <h3>Analytics</h3>
+      <span>Each transfer counts once for the selected branch and sidebar dates.</span></div>
       <button type="button" className="secondary-action" onClick={refresh}><RefreshCw size={16} aria-hidden="true" />Refresh analytics</button>
     </div>
     <div className="analytics-context"><span>{scopeName} · {dateLabel}</span><span>Updated {new Date(result.loadedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></div>
