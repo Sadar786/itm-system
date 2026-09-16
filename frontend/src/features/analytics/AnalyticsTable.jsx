@@ -1,3 +1,4 @@
+import { TableScroll } from "../../components/TableScroll";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
@@ -64,7 +65,7 @@ export function AnalyticsTable({ section, title, description, searchPlaceholder,
         </label>
       </div>
     </div>
-    <div className="table-wrap" aria-busy={loading}>
+    <TableScroll label={title} aria-busy={loading}>
       <table className="analytics-table" aria-label={title}>
         <thead className="table-head"><tr>{columns.map((column) => <th key={column.key} scope="col" className={column.numeric ? "analytics-number" : undefined}>{column.label}</th>)}</tr></thead>
         <tbody>
@@ -76,7 +77,7 @@ export function AnalyticsTable({ section, title, description, searchPlaceholder,
           </td></tr>}
         </tbody>
       </table>
-    </div>
+    </TableScroll>
     <div className="analytics-pagination">
       <span className="analytics-page-info" aria-live="polite">{loading ? "Updating results…" : error ? "Could not load results" : `Showing ${firstRow.toLocaleString()}–${lastRow.toLocaleString()} of ${total.toLocaleString()}${submittedSearch ? " matching" : ""} rows`}</span>
       <nav aria-label={`${title} pagination`}>

@@ -22,7 +22,7 @@ export function ReportsFeature({ dateFilters, shopId, wastageSearch, wastageDate
     if (report.useShop && shopId.trim()) params.set("shopId", shopId.trim());
     if (report.useDates) { if (dateFilters.startDate) params.set("startDate", dateFilters.startDate); if (dateFilters.endDate) params.set("endDate", dateFilters.endDate); }
     if (report.useDateMode && dateFilters.dateMode === "month") params.set("month", dateFilters.month);
-    setBusyKey(report.key); setError("");
+    setBusyKey(report.key); setError(""); setMessage("");
     try { const name = await downloadReport({ token, url: `${API_BASE_URL}${report.path}${params.size ? `?${params}` : ""}`, fallbackFilename: report.filename }); setMessage(`${name} downloaded.`); }
     catch (downloadError) { setError(downloadError.message); } finally { setBusyKey(""); }
   };

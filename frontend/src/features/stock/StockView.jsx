@@ -1,3 +1,6 @@
+import { TableScroll } from "../../components/TableScroll";
+import { TablePagination } from "../../components/TablePagination";
+import { useTablePage } from "../../components/useTablePage";
 import { useConfirm } from "../../components/confirmationContext";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 //src/features/stock/StockView.jsx
@@ -151,10 +154,9 @@ export function StockView({
     return true;
   });
 
-  /*
-   * Show first 20 TRANSFERS, not first 20 movement records.
-   */
-  const recentTransfers = filteredTransfers.slice(0, 20);
+  // Paginate complete transfers so their product rows stay together.
+  const tablePage = useTablePage(filteredTransfers, JSON.stringify([shopId, dateRange, stockFilter, statusFilter, searchTerm]));
+  const recentTransfers = tablePage.rows;
 
   const { result, current, refresh } = useAnalytics({
     shopId,
@@ -355,7 +357,7 @@ export function StockView({
           )}
         </div>
 
-        <div className="table-wrap">
+        <TableScroll label="Stock movements">
           <table>
             <thead className="table-head">
               <tr>
@@ -534,7 +536,8 @@ export function StockView({
               )}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
+        <TablePagination {...tablePage} label="Stock movements" disabled={Boolean(activeTransferId)} />
       </section>
     </div>
   );

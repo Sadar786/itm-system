@@ -23,7 +23,7 @@ export function WorkspaceHeader({ activeView, isLoggedIn }) {
               ? 'Recent branch-to-branch stock movements.'
               : isAdmin
                 ? 'Create, edit, and delete branches and products.'
-                : 'Exports save as Excel files from the backend report routes.'}
+                : 'Download Excel reports for your transfers and approved wastage.'}
         </p>
       </div>
       <span className={isLoggedIn ? 'status online' : 'status'} />

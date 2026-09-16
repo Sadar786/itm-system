@@ -1,0 +1,14 @@
+.table-wrap.scrollable-table { min-width: 0; max-width: 100%; max-height: none; overflow-x: auto; scrollbar-width: thin; scrollbar-color: #a8bab6 #f1f5f9; }
+.scrollable-table::-webkit-scrollbar { height: 8px; }
+.scrollable-table::-webkit-scrollbar-track { background: #f1f5f9; }
+.scrollable-table::-webkit-scrollbar-thumb { background: #a8bab6; border: 2px solid #f1f5f9; border-radius: 8px; }
+.scrollable-table:focus-visible { outline: 2px solid #0f766e; outline-offset: -2px; }
+.scrollable-table > table > thead { position: relative; z-index: 2; transform: translateY(var(--table-header-offset, 0)); }
+.scrollable-table > table > thead th { white-space: nowrap; box-shadow: 0 1px 0 #dbe3e8; }
+.list-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 14px; border-top: 1px solid #e2e8f0; background: #fbfcfe; color: #64748b; font-size: 12px; }
+.list-pagination nav { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.list-pagination button { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; border: 1px solid #d7e1e5; background: #fff; color: #334155; font-size: 12px; box-shadow: none; }
+.list-pagination button:hover:not(:disabled) { background: #f0fdfa; border-color: #8cb9ae; }
+.list-pagination button:disabled { opacity: 0.45; cursor: default; }
+.list-pagination button:focus-visible { outline: 2px solid #0f766e; outline-offset: 2px; }
+@media (max-width: 600px) { .list-pagination { justify-content: center; } }

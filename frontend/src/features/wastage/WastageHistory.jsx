@@ -1,3 +1,5 @@
+import { TableScroll } from "../../components/TableScroll";
+import { TablePagination } from "../../components/TablePagination";
 import { useConfirm } from "../../components/confirmationContext";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { useEffect, useState } from "react";
@@ -31,6 +33,12 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
   const [result, setResult] = useState(null);
   const [selected, setSelected] = useState(null);
   const { startDate, endDate } = dateRange;
+  const filterKey = JSON.stringify([token, startDate, endDate, search, shopId]);
+  const [pageSelection, setPageSelection] = useState({ key: filterKey, page: 1 });
+  if (pageSelection.key !== filterKey) {
+    setPageSelection({ key: filterKey, page: 1 });
+  }
+  const page = pageSelection.key === filterKey ? pageSelection.page : 1;
   const requestKey = JSON.stringify([
     token,
     startDate,
@@ -39,6 +47,7 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
     shopId,
     refreshVersion,
     revision,
+    page,
   ]);
   const current = result?.key === requestKey;
   const loading = !current;
@@ -57,21 +66,15 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
           filters.startDate = new Date(startDate + "T00:00:00").toISOString();
         if (endDate)
           filters.endDate = new Date(endDate + "T23:59:59.999").toISOString();
-        let page = 1;
-        let pages = 1;
-        const data = [];
-        do {
-          const response = await getWastes({
-            token,
-            filters,
-            page,
-            signal: controller.signal,
-          });
-          data.push(...response.data);
-          pages = response.pagination.pages;
-          page += 1;
-        } while (page <= pages && !controller.signal.aborted);
-        if (!controller.signal.aborted) setResult({ key: requestKey, data });
+        const response = await getWastes({ token, filters, page, signal: controller.signal });
+        if (!controller.signal.aborted) {
+          const lastPage = Math.max(1, response.pagination.pages);
+          if (page > lastPage) {
+            setPageSelection({ key: filterKey, page: lastPage });
+            return;
+          }
+          setResult({ key: requestKey, data: response.data, pagination: response.pagination });
+        }
       } catch (failure) {
         if (!controller.signal.aborted)
           setResult({
@@ -84,7 +87,7 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [token, startDate, endDate, search, shopId, requestKey]);
+  }, [token, startDate, endDate, search, shopId, requestKey, page, filterKey]);
   const changeWaste = async (waste, status) => {
     if (!isAdmin || activeId) return;
     if (status && waste.status && waste.status !== "pending") return;
@@ -148,7 +151,7 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
         <div>
           <h3 id="wastage-history-heading">Wastage History</h3>
           <span>
-            {loading ? "Loading records..." : rows.length + " records"}
+            {loading ? "Loading records..." : (result?.pagination?.total || 0) + " records"}
           </span>
         </div>
       </div>
@@ -165,7 +168,7 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
           month or date range.
         </p>
       ) : (
-        <div className="table-wrap">
+        <TableScroll label="Wastage">
           <table>
             <thead className="table-head">
               <tr>
@@ -195,7 +198,7 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
                     }
                   }}
                 >
-                  <td>
+                  <td className="wastage-date-cell">
                     <strong>{displayDate(waste.wasteDate)}</strong>
                     <small className="wastage-time" title="Time recorded">
                       {displayTime(waste.createdAt || waste.wasteDate)}
@@ -245,8 +248,13 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
       )}
+      {!loading && !error && rows.length > 0 && <TablePagination
+        label="Wastage" page={page} total={result.pagination.total}
+        disabled={Boolean(activeId)}
+        onPageChange={(next) => setPageSelection({ key: filterKey, page: next })}
+      />}
       <Modal
         isOpen={Boolean(selected)}
         onClose={() => setSelected(null)}
@@ -290,7 +298,7 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
               <span>Notes</span>
               <strong>{selected.remarks || "None"}</strong>
             </div>
-            <div className="table-wrap">
+            <TableScroll label="Wastage products">
               <table>
                 <thead className="table-head">
                   <tr>
@@ -311,7 +319,7 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
           </div>
         )}
       </Modal>

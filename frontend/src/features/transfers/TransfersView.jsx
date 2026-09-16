@@ -1,3 +1,5 @@
+import { TableScroll } from "../../components/TableScroll";
+import { TablePagination } from "../../components/TablePagination";
 import { useConfirm } from "../../components/confirmationContext";
 //src/features/transfers/TransfersView.jsx
 import { Search, X } from "lucide-react";
@@ -40,10 +42,6 @@ export function TransfersView() {
 
   const isAdmin = user?.role === "admin";
   const isShopkeeper = user?.role === "shop_keeper";
-
-  const hasMore =
-    transferPagination.page < transferPagination.pages &&
-    transfers.length < transferPagination.total;
 
   const filteredTransfers = transfers;
 
@@ -151,7 +149,7 @@ export function TransfersView() {
       </div>
 
       {loading && <LoadingSpinner label="Loading transfers..." />}
-      <div className="table-wrap" hidden={loading}>
+      <TableScroll label="Transfers" hidden={loading}>
         <table>
           <thead className="table-head">
             <tr>
@@ -258,7 +256,14 @@ export function TransfersView() {
                         });
 
                         if (confirmed) {
-                          dispatch(removeTransfer(transfer._id));
+                          const result = await dispatch(removeTransfer(transfer._id));
+                          if (removeTransfer.fulfilled.match(result)) {
+                            dispatch(fetchTransfers({
+                              page: Math.min(transferPagination.page, Math.max(1, Math.ceil((transferPagination.total - 1) / 20))),
+                              search: searchTerm,
+                              status: statusFilter === "all" ? "" : statusFilter,
+                            }));
+                          }
                         }
                       }}
                     >
@@ -285,27 +290,12 @@ export function TransfersView() {
             )}
           </tbody>
         </table>
-      </div>
+      </TableScroll>
 
-      {hasMore && !loading && (
-        <div className="table-footer">
-          <button
-            type="button"
-            className="secondary-action"
-            onClick={() =>
-              dispatch(fetchTransfers({
-                page: transferPagination.page + 1,
-                append: true,
-                search: searchTerm,
-                status: statusFilter === "all" ? "" : statusFilter,
-              }))
-            }
-            disabled={Boolean(activeTransferId)}
-          >
-            Load more transfers
-          </button>
-        </div>
-      )}
+      <TablePagination label="Transfers" page={transferPagination.page} total={transferPagination.total}
+        disabled={loading || Boolean(activeTransferId)}
+        onPageChange={(page) => dispatch(fetchTransfers({ page, search: searchTerm, status: statusFilter === "all" ? "" : statusFilter }))}
+      />
       <TransferDetailModal isOpen={Boolean(selectedTransfer)} onClose={() => setSelectedTransfer(null)} transfer={selectedTransfer} />
     </section>
   );

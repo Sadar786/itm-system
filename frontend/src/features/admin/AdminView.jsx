@@ -1,3 +1,6 @@
+import { TableScroll } from "../../components/TableScroll";
+import { TablePagination } from "../../components/TablePagination";
+import { useTablePage } from "../../components/useTablePage";
 import { useConfirm } from "../../components/confirmationContext";
 //src/features/admin/AdminView.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -134,6 +137,11 @@ export function AdminView({
         .some((value) => String(value).toLowerCase().includes(search)),
     );
   }, [users, shops, userSearch]);
+
+  const branchPage = useTablePage(filteredShops, branchSearch);
+  const productPage = useTablePage(filteredProducts, productSearch);
+  const unitPage = useTablePage(units, "units");
+  const userPage = useTablePage(filteredUsers, userSearch);
 
   const getUserBranch = (item) => {
     if (!item?.shopId) return null;
@@ -292,7 +300,7 @@ export function AdminView({
           </div>
           <div aria-busy={sectionLoading}>
             {sectionLoading && <LoadingSpinner label={`Loading ${activeSection}...`} />}
-            <div className="table-wrap admin-table-wrap" hidden={sectionLoading}>
+            <TableScroll label="Management records" className="admin-table-wrap" hidden={sectionLoading}>
             <table>
               <thead>
                 <tr>
@@ -306,7 +314,7 @@ export function AdminView({
               </thead>
 
               <tbody>
-                {filteredShops.map((shop) => (
+                {branchPage.rows.map((shop) => (
                   <tr key={shop._id}>
                     <td>{shop.name}</td>
 
@@ -353,7 +361,8 @@ export function AdminView({
                 )}
               </tbody>
             </table>
-            </div>
+            </TableScroll>
+            {!sectionLoading && <TablePagination {...branchPage} label="Branches" disabled={Boolean(busyKey) || Boolean(activeUserId)} />}
           </div>
         </section>
       )}
@@ -430,7 +439,7 @@ export function AdminView({
 
           <div aria-busy={sectionLoading}>
             {sectionLoading && <LoadingSpinner label={`Loading ${activeSection}...`} />}
-            <div className="table-wrap admin-table-wrap" hidden={sectionLoading}>
+            <TableScroll label="Management records" className="admin-table-wrap" hidden={sectionLoading}>
             <table>
               <thead>
                 <tr>
@@ -444,7 +453,7 @@ export function AdminView({
               </thead>
 
               <tbody>
-                {filteredProducts.map((product) => (
+                {productPage.rows.map((product) => (
                   <tr key={product._id}>
                     <td>{product.itemCode}</td>
 
@@ -493,7 +502,8 @@ export function AdminView({
                 )}
               </tbody>
             </table>
-            </div>
+            </TableScroll>
+            {!sectionLoading && <TablePagination {...productPage} label="Products" disabled={Boolean(busyKey) || Boolean(activeUserId)} />}
           </div>
         </section>
       )}
@@ -519,7 +529,7 @@ export function AdminView({
 
           <div aria-busy={sectionLoading}>
             {sectionLoading && <LoadingSpinner label={`Loading ${activeSection}...`} />}
-            <div className="table-wrap admin-table-wrap" hidden={sectionLoading}>
+            <TableScroll label="Management records" className="admin-table-wrap" hidden={sectionLoading}>
             <table>
               <thead>
                 <tr>
@@ -532,7 +542,7 @@ export function AdminView({
               </thead>
 
               <tbody>
-                {units.map((unit) => (
+                {unitPage.rows.map((unit) => (
                   <tr key={unit._id}>
                     <td>{unit.name}</td>
 
@@ -573,7 +583,8 @@ export function AdminView({
                 )}
               </tbody>
             </table>
-            </div>
+            </TableScroll>
+            {!sectionLoading && <TablePagination {...unitPage} label="Units" disabled={Boolean(busyKey) || Boolean(activeUserId)} />}
           </div>
         </section>
       )}
@@ -612,7 +623,7 @@ export function AdminView({
 
           <div aria-busy={sectionLoading}>
             {sectionLoading && <LoadingSpinner label={`Loading ${activeSection}...`} />}
-            <div className="table-wrap admin-table-wrap" hidden={sectionLoading}>
+            <TableScroll label="Management records" className="admin-table-wrap" hidden={sectionLoading}>
             <table>
               <thead>
                 <tr>
@@ -626,7 +637,7 @@ export function AdminView({
               </thead>
 
               <tbody>
-                {filteredUsers.map((item) => {
+                {userPage.rows.map((item) => {
                   const branch = getUserBranch(item);
                   const isMenuOpen = openUserMenu === item._id;
 
@@ -815,7 +826,8 @@ export function AdminView({
                 )}
               </tbody>
             </table>
-            </div>
+            </TableScroll>
+            {!sectionLoading && <TablePagination {...userPage} label="Users" disabled={Boolean(busyKey) || Boolean(activeUserId)} />}
           </div>
         </section>
       )}

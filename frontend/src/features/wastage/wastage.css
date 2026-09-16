@@ -20,17 +20,30 @@
 .wastage-time { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); white-space: nowrap; }
 
 .wastage-history > .table-wrap > table > .table-head { border: 0; }
+.wastage-history > .table-wrap > table { min-width: 960px; }
 .wastage-history > .table-wrap > table > .table-head th {
-  padding: 12px 14px;
+  padding: 10px;
+  font-size: 10px;
   background: #f8fafc;
   color: #64748b;
   letter-spacing: 0.04em;
   border-top: 1px solid var(--line-soft);
 }
 .wastage-history > .table-wrap > table > tbody > tr > td {
-  padding: 14px;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.45;
   vertical-align: middle;
 }
+.wastage-history > .table-wrap td strong { font-weight: 600; }
+.wastage-history > .table-wrap td > span { font-size: 11px; }
+.wastage-history > .table-wrap .wastage-time { font-size: 10px; }
+.wastage-history > .table-wrap td.wastage-date-cell {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  font-variant-numeric: tabular-nums;
+}
+.wastage-history > .table-wrap > table > tbody > tr > td.wastage-reference { font-size: 11px; }
 .wastage-history .wastage-reference {
   min-width: 150px;
   font-size: 11px;
