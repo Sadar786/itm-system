@@ -84,7 +84,10 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
   const productSearchResults = useSelector(selectAdminProductSearchResults);
 
   const productImportInputRef = useRef(null);
+  const productImportRequestRef = useRef(0);
   const [busyKey, setBusyKey] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [productImportResult, setProductImportResult] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
   const [selectedShopId, setSelectedShopId] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
@@ -106,7 +109,10 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
   useEffect(() => {
     dispatch(clearAdminProductSearch());
 
-    return () => dispatch(clearAdminProductSearch());
+    return () => {
+      productImportRequestRef.current += 1;
+      dispatch(clearAdminProductSearch());
+    };
   }, [dispatch]);
 
   const clearNotice = () => onNotice?.({ error: "", message: "" });
@@ -412,7 +418,9 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
     const file = event.target.files?.[0];
     event.target.value = "";
 
-    if (!file) return;
+    if (!file || busyKey || isImporting || !isLoggedIn) return;
+
+    setProductImportResult(null);
 
     const extension = file.name.split(".").pop()?.toLowerCase();
     if (!["xlsx", "xls"].includes(extension)) {
@@ -421,33 +429,37 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
     }
 
     setBusyKey("product-import");
+    setIsImporting(true);
     clearNotice();
+    const requestId = ++productImportRequestRef.current;
+    const isCurrentImport = () => requestId === productImportRequestRef.current;
 
     try {
       const data = await dispatch(importCatalogProducts(file)).unwrap();
+      if (!isCurrentImport()) return;
+
       const summary = data.summary || {};
+      setProductImportResult({ ...data, filename: file.name });
       await refreshProducts();
+      if (!isCurrentImport()) return;
+
       showSuccess(
         `Import completed. Created: ${summary.created || 0}, ` +
           `Skipped: ${summary.skipped || 0}, ` +
           `Failed: ${summary.failed || 0}.`,
       );
-
-      if (summary.failed > 0) {
-        console.log("Failed product rows:", data.failed);
-      }
-      if (summary.skipped > 0) {
-        console.log("Skipped product rows:", data.skipped);
-      }
     } catch (error) {
-      showError(error);
+      if (isCurrentImport()) showError(error);
     } finally {
-      setBusyKey("");
+      if (isCurrentImport()) {
+        setBusyKey("");
+        setIsImporting(false);
+      }
     }
   };
 
   const openProductImport = () => {
-    if (isLoggedIn && !busyKey) {
+    if (isLoggedIn && !busyKey && !isImporting) {
       productImportInputRef.current?.click();
     }
   };
@@ -496,11 +508,12 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
         onChange={handleImportProducts}
       />
       <AdminView
-        busyKey={busyKey}
+        busyKey={isImporting ? "product-import" : busyKey}
         isLoggedIn={isLoggedIn}
         isShopkeeper={isShopkeeper}
         user={user}
         products={displayedProducts}
+        productImportResult={productImportResult}
         shops={shops}
         units={units}
         onCreateProduct={openCreateProductModal}

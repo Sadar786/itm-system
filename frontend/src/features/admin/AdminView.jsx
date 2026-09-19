@@ -15,6 +15,7 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { deactivateAdminUser, selectAdminActiveUserId, selectAdminUsers, updateAdminUser } from "./adminSlice";
+import { AdminProductImportReport } from "./AdminProductImportReport";
 
 export function AdminView({
   isLoggedIn,
@@ -22,6 +23,7 @@ export function AdminView({
   user,
   busyKey,
   products,
+  productImportResult,
   shops,
   units,
   onCreateProduct,
@@ -409,10 +411,10 @@ export function AdminView({
                 type="button"
                 className="primary-action"
                 onClick={onImportProducts}
-                disabled={!isLoggedIn}
+                disabled={!isLoggedIn || Boolean(busyKey)}
               >
                 <FileSpreadsheet size={16} />
-                Import Excel
+                {busyKey === "product-import" ? "Importing..." : "Import Excel"}
               </button>
 
               <button
@@ -436,6 +438,10 @@ export function AdminView({
               </button>
             </div>
           </div>
+
+          {productImportResult && (
+            <AdminProductImportReport result={productImportResult} />
+          )}
 
           <div aria-busy={sectionLoading}>
             {sectionLoading && <LoadingSpinner label={`Loading ${activeSection}...`} />}

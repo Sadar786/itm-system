@@ -13,7 +13,6 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: [true, "Product description is required"],
       trim: true,
-      uppercase: true,
       index: true,
     },
     categoryId: {

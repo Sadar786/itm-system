@@ -1,8 +1,8 @@
 import Product from "../models/Product.js";
-import XLSX from "xlsx";
 import Category from "../models/Category.js";
 import Unit from "../models/Unit.js";
 import { createProductsWorkbookBuffer } from "../services/excelService.js"
+import { parseProductImport, findDescriptionConflicts } from "../services/productImportService.js";
 
 /**
  * =========================
@@ -257,6 +257,52 @@ export const deleteProduct = async (req, res) => {
   }
 };
 
+export const deleteProductsBulk = async (req, res) => {
+  const productIds = req.body?.productIds;
+
+  if (!Array.isArray(productIds) || productIds.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Select at least one product to delete",
+    });
+  }
+
+  // Validate every ID before constructing the deletion filter or writing.
+  if (productIds.some((id) => typeof id !== "string" || !/^[a-f\d]{24}$/i.test(id))) {
+    return res.status(400).json({
+      success: false,
+      message: "Every selected product must have a valid product ID",
+    });
+  }
+
+  const uniqueIds = [...new Set(productIds.map((id) => id.toLowerCase()))];
+  if (uniqueIds.length > 10000) {
+    return res.status(400).json({
+      success: false,
+      message: "Select no more than 10,000 products at a time",
+    });
+  }
+
+  try {
+    const result = await Product.deleteMany({ _id: { $in: uniqueIds } });
+
+    return res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} product${result.deletedCount === 1 ? "" : "s"} deleted successfully`,
+      data: {
+        requestedCount: uniqueIds.length,
+        deletedCount: result.deletedCount,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Products could not be deleted",
+      error: error.message,
+    });
+  }
+};
+
 // ==============================
 
 /**
@@ -273,32 +319,7 @@ export const importProducts = async (req, res) => {
       });
     }
 
-    const workbook = XLSX.read(req.file.buffer, {
-      type: "buffer",
-    });
-
-    const sheetName = workbook.SheetNames[0];
-
-    if (!sheetName) {
-      return res.status(400).json({
-        success: false,
-        message: "Excel file does not contain a worksheet",
-      });
-    }
-
-    const worksheet = workbook.Sheets[sheetName];
-
-    const rows = XLSX.utils.sheet_to_json(worksheet, {
-      defval: "",
-      raw: false,
-    });
-
-    if (!rows.length) {
-      return res.status(400).json({
-        success: false,
-        message: "Excel file contains no product rows",
-      });
-    }
+    const { sheetName, rows: normalizedRows } = parseProductImport(req.file.buffer);
 
     // --------------------------------
     // Load categories and units
@@ -332,69 +353,6 @@ export const importProducts = async (req, res) => {
     });
 
     // --------------------------------
-    // Normalize rows
-    // --------------------------------
-    const normalizedRows = [];
-
-    for (let index = 0; index < rows.length; index += 1) {
-      const row = rows[index];
-
-      const itemCode = String(
-        row["Item Code"] ?? row["itemCode"] ?? ""
-      )
-        .trim()
-        .toUpperCase();
-
-      const description = String(
-        row["Description"] ?? row["description"] ?? ""
-      ).trim();
-
-      const categoryName = String(
-        row["Category"] ?? row["category"] ?? ""
-      ).trim();
-
-      const unitName = String(
-        row["Unit"] ?? row["unit"] ?? ""
-      ).trim();
-
-      const barcode = String(
-        row["Barcode"] ?? row["barcode"] ?? ""
-      ).trim();
-
-      const isPerishableValue = String(
-        row["Perishable"] ?? row["isPerishable"] ?? ""
-      )
-        .trim()
-        .toLowerCase();
-
-      const minimumStockValue =
-        row["Minimum Stock"] ?? row["minimumStock"] ?? 0;
-
-      const reorderLevelValue =
-        row["Reorder Level"] ?? row["reorderLevel"] ?? 0;
-
-      const notes = String(
-        row["Notes"] ?? row["notes"] ?? ""
-      ).trim();
-
-      normalizedRows.push({
-        rowNumber: index + 2,
-        itemCode,
-        description,
-        categoryName,
-        unitName,
-        barcode,
-        isPerishable:
-          isPerishableValue === "yes" ||
-          isPerishableValue === "true" ||
-          isPerishableValue === "1",
-        minimumStock: Number(minimumStockValue || 0),
-        reorderLevel: Number(reorderLevelValue || 0),
-        notes,
-      });
-    }
-
-    // --------------------------------
     // Find existing item codes
     // --------------------------------
     const itemCodes = [
@@ -407,11 +365,12 @@ export const importProducts = async (req, res) => {
 
     const existingProducts = await Product.find({
       itemCode: { $in: itemCodes },
-    }).select("itemCode");
+    }).select("itemCode description");
 
-    const existingCodes = new Set(
-      existingProducts.map((product) => product.itemCode)
+    const existingByCode = new Map(
+      existingProducts.map((product) => [product.itemCode, product])
     );
+    const descriptionConflicts = findDescriptionConflicts(normalizedRows);
 
     // --------------------------------
     // Prevent duplicate rows
@@ -420,11 +379,16 @@ export const importProducts = async (req, res) => {
     const processedCodes = new Set();
 
     const productsToCreate = [];
+    const sourceRows = [];
 
     const skipped = [];
     const failed = [];
 
     for (const row of normalizedRows) {
+      if (row.error) {
+        failed.push({ row: row.rowNumber, itemCode: row.itemCode, reason: row.error });
+        continue;
+      }
       // Required fields
       if (
         !row.itemCode ||
@@ -442,13 +406,31 @@ export const importProducts = async (req, res) => {
       }
 
       // Already in database
-      if (existingCodes.has(row.itemCode)) {
+      const existingProduct = existingByCode.get(row.itemCode);
+      if (existingProduct) {
+        const descriptionDiffers = existingProduct.description !== row.description;
         skipped.push({
           row: row.rowNumber,
           itemCode: row.itemCode,
-          reason: "Product already exists",
+          reason: descriptionDiffers
+            ? "Product already exists with a different description. The saved description was not changed."
+            : "Product already exists",
+          ...(descriptionDiffers ? {
+            excelDescription: row.description,
+            existingDescription: existingProduct.description,
+          } : {}),
         });
 
+        continue;
+      }
+
+      if (descriptionConflicts.has(row.itemCode)) {
+        failed.push({
+          row: row.rowNumber,
+          itemCode: row.itemCode,
+          reason: descriptionConflicts.get(row.itemCode),
+          excelDescription: row.description,
+        });
         continue;
       }
 
@@ -463,9 +445,6 @@ export const importProducts = async (req, res) => {
         continue;
       }
 
-      processedCodes.add(row.itemCode);
-
-      // Category lookup
       // Category lookup - optional
       let categoryId = undefined;
 
@@ -538,28 +517,60 @@ export const importProducts = async (req, res) => {
         reorderLevel: row.reorderLevel,
         notes: row.notes,
       });
+      sourceRows.push(row);
+      processedCodes.add(row.itemCode);
     }
 
     // --------------------------------
     // Insert new products
     // --------------------------------
-    let createdProducts = [];
+    let created = 0;
 
     if (productsToCreate.length) {
-      createdProducts = await Product.insertMany(
-        productsToCreate,
-        {
+      let result;
+      try {
+        result = await Product.insertMany(productsToCreate, {
           ordered: false,
+          rawResult: true,
+        });
+      } catch (error) {
+        // Unordered writes can insert valid rows even when another row fails.
+        // Only report a completed import when the driver knows every outcome.
+        const insertedCount = error.result?.insertedCount;
+        if (!error.writeErrors?.length || !Number.isInteger(insertedCount) ||
+            error.result?.getWriteConcernError?.()) throw error;
+        result = {
+          insertedCount,
+          writeErrors: error.writeErrors,
+          mongoose: error.mongoose,
+        };
+      }
+
+      created = result.insertedCount;
+      const validationErrors = new Set(result.mongoose?.validationErrors || []);
+      const writeErrors = new Map((result.writeErrors || []).map((error) => [error.index, error]));
+      sourceRows.forEach((row, index) => {
+        const validationResult = result.mongoose?.results?.[index];
+        const error = writeErrors.get(index) || (validationErrors.has(validationResult) ? validationResult : null);
+        if (error) {
+          failed.push({
+            row: row.rowNumber,
+            itemCode: row.itemCode,
+            reason: (error.code ?? error.err?.code) === 11000
+              ? "Item code was created by another import. Reload products and compare the saved description."
+              : error.message || error.errmsg || error.err?.errmsg || "Product could not be saved",
+          });
         }
-      );
+      });
     }
 
     return res.status(200).json({
       success: true,
       message: "Product import completed",
+      sheetName,
       summary: {
-        totalRows: rows.length,
-        created: createdProducts.length,
+        totalRows: normalizedRows.length,
+        created,
         skipped: skipped.length,
         failed: failed.length,
       },
@@ -567,6 +578,9 @@ export const importProducts = async (req, res) => {
       failed,
     });
   } catch (error) {
+    if (error.statusCode === 400) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     console.error("Product import error:", error);
 
     return res.status(500).json({

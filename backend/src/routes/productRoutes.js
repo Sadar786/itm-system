@@ -4,6 +4,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  deleteProductsBulk,
   getOneProduct,
   importProducts,
   exportProductsExcel,
@@ -30,6 +31,7 @@ router.post(
 // UPDATE A PRODUCT
 router.put('/update/:id', protect, authorizeRoles("admin"), updateProduct);
 // DELETE A PRODUCT
+router.delete('/bulk', protect, authorizeRoles("admin"), deleteProductsBulk);
 router.delete('/delete/:id', protect, authorizeRoles("admin"), deleteProduct);
 // product in excel
 router.get("/export/excel", protect, exportProductsExcel);
