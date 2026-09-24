@@ -16,6 +16,9 @@ import {
   fetchCatalogShops,
   fetchCatalogTransferDestinationShops,
   fetchCatalogUnits,
+  searchCatalogProducts,
+  selectAdminProductSearchQuery,
+  selectAdminProductPagination,
   selectCatalogShops,
 } from "./features/catalog/catalogSlice";
 import { ReportsFeature } from "./features/reports/ReportsFeature";
@@ -64,6 +67,8 @@ function WorkspaceApp() {
   const authError = useSelector(selectAuthError);
   const authMessage = useSelector(selectAuthMessage);
   const shops = useSelector(selectCatalogShops);
+  const adminProductQuery = useSelector(selectAdminProductSearchQuery);
+  const adminProductPagination = useSelector(selectAdminProductPagination);
 
   const [activeView, setActiveView] = useState("stock");
   const [wastageSearch, setWastageSearch] = useState("");
@@ -168,6 +173,9 @@ function WorkspaceApp() {
 
     try {
       await Promise.all([
+        ...(activeView === "admin" && isAdmin ? [
+          dispatch(searchCatalogProducts({ search: adminProductQuery, page: adminProductPagination.page })).unwrap(),
+        ] : []),
         dispatch(fetchCatalogProducts()).unwrap(),
         dispatch(fetchCatalogShops()).unwrap(),
         dispatch(fetchCatalogTransferDestinationShops()).unwrap(),

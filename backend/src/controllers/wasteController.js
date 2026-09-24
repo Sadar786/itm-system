@@ -44,6 +44,35 @@ export const deleteWaste = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Wastage deleted successfully" });
 });
 
+export const deleteWastesBulk = asyncHandler(async (req, res) => {
+  const wasteIds = req.body?.wasteIds;
+  if (!Array.isArray(wasteIds) || wasteIds.length === 0) {
+    throw new AppError("Select at least one wastage record to delete", 400);
+  }
+  // Validate the entire selection before opening a session or deleting records.
+  const uniqueIds = [...new Set(wasteIds.map((id) => validateId(id, "waste id")))];
+  if (uniqueIds.length > 10000) {
+    throw new AppError("Select no more than 10,000 wastage records at a time", 400);
+  }
+
+  const session = await mongoose.startSession();
+  let deletedCount;
+  try {
+    deletedCount = await session.withTransaction(async () => {
+      const result = await Waste.deleteMany({ _id: { $in: uniqueIds } }, { session });
+      await WasteItem.deleteMany({ wasteId: { $in: uniqueIds } }, { session });
+      return result.deletedCount;
+    });
+  } finally {
+    await session.endSession();
+  }
+  res.json({
+    success: true,
+    message: `${deletedCount} wastage record${deletedCount === 1 ? "" : "s"} deleted successfully`,
+    data: { requestedCount: uniqueIds.length, deletedCount },
+  });
+});
+
 export const createWaste = asyncHandler(async (req, res) => {
   const data = await createWasteService(req.user, req.body);
   res.status(201).json({ success: true, message: "Wastage recorded successfully", data });

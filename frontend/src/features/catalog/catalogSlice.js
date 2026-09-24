@@ -5,6 +5,7 @@ import {
   createShop,
   createUnit,
   deleteProduct,
+  deleteProductsBulk,
   deleteShop,
   deleteUnit,
   getCategories,
@@ -16,7 +17,7 @@ import {
   updateProduct,
   updateShop,
   updateUnit,
-} from "../../services/api";
+} from "../../services/api.js";
 
 const initialState = {
   products: [],
@@ -27,6 +28,8 @@ const initialState = {
   adminProductSearch: {
     query: "",
     results: [],
+    pagination: { total: 0, page: 1, pages: 0, limit: 20 },
+    requestedPage: 1,
     status: "idle",
     requestId: null,
   },
@@ -61,9 +64,13 @@ export const fetchCatalogProducts = createCatalogRequest(
 
 export const searchCatalogProducts = createCatalogRequest(
   "catalog/searchProducts",
-  async ({ argument: search = "", token }) => {
-    const data = await getProducts(token, search);
-    return data.data || [];
+  async ({ argument = {}, token }) => {
+    const { search = "", page = 1 } = typeof argument === "string" ? { search: argument } : argument;
+    const response = await getProducts(token, search, { page, limit: 20 });
+    return {
+      products: response.data || [],
+      pagination: { ...response.pagination, limit: 20 },
+    };
   },
 );
 
@@ -115,6 +122,11 @@ export const deleteCatalogProduct = createCatalogRequest(
   ({ argument: productId, token }) => deleteProduct({ token, productId }),
 );
 
+export const deleteCatalogProducts = createCatalogRequest(
+  "catalog/deleteProducts",
+  ({ argument: productIds, token }) => deleteProductsBulk({ token, productIds }),
+);
+
 export const importCatalogProducts = createCatalogRequest(
   "catalog/importProducts",
   ({ argument: file, token }) => importProducts({ token, file }),
@@ -161,6 +173,19 @@ const catalogSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(deleteCatalogProduct.fulfilled, (state, action) => {
+        state.products = state.products.filter((product) => product._id !== action.meta.arg);
+        state.adminProductSearch.results = state.adminProductSearch.results.filter(
+          (product) => product._id !== action.meta.arg,
+        );
+      })
+      .addCase(deleteCatalogProducts.fulfilled, (state, action) => {
+        const deletedIds = new Set(action.meta.arg);
+        state.products = state.products.filter((product) => !deletedIds.has(product._id));
+        state.adminProductSearch.results = state.adminProductSearch.results.filter(
+          (product) => !deletedIds.has(product._id),
+        );
+      })
       .addCase(fetchCatalogProducts.pending, (state) => {
         state.status.products = "loading";
         state.error = "";
@@ -174,17 +199,19 @@ const catalogSlice = createSlice({
         state.error = action.payload || "Failed to load products.";
       })
       .addCase(searchCatalogProducts.pending, (state, action) => {
-        state.adminProductSearch = {
-          query: action.meta.arg,
-          results: [],
-          status: "loading",
-          requestId: action.meta.requestId,
-        };
+        const query = typeof action.meta.arg === "string" ? action.meta.arg : action.meta.arg?.search || "";
+        if (state.adminProductSearch.query !== query) {
+          state.adminProductSearch = { ...initialState.adminProductSearch, query };
+        }
+        state.adminProductSearch.status = "loading";
+        state.adminProductSearch.requestedPage = action.meta.arg?.page || 1;
+        state.adminProductSearch.requestId = action.meta.requestId;
       })
       .addCase(searchCatalogProducts.fulfilled, (state, action) => {
         if (state.adminProductSearch.requestId !== action.meta.requestId) return;
 
-        state.adminProductSearch.results = action.payload;
+        state.adminProductSearch.results = action.payload.products;
+        state.adminProductSearch.pagination = action.payload.pagination;
         state.adminProductSearch.status = "succeeded";
       })
       .addCase(searchCatalogProducts.rejected, (state, action) => {
@@ -256,5 +283,7 @@ export const selectAdminProductSearchQuery = (state) =>
   state.catalog.adminProductSearch.query;
 export const selectAdminProductSearchResults = (state) =>
   state.catalog.adminProductSearch.results;
+export const selectAdminProductPagination = (state) =>
+  state.catalog.adminProductSearch.pagination;
 
 export default catalogSlice.reducer;

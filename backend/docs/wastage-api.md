@@ -62,5 +62,15 @@ approved and cancelled statuses are final (further changes return 409).
 Both endpoints return 404 for missing records and 403 for shopkeepers.
 Neither operation changes inventory.
 
-Run focused checks with `node --test tests/waste.test.js tests/waste-date.test.js` from backend.
+`DELETE /api/wastes/bulk` accepts `{ "wasteIds": ["<wastage ObjectId>"] }`.
+Only admins may delete selections. Supply at least one ID and no more than 10,000
+unique IDs; malformed selections return 400 before any database access. IDs are
+validated and deduplicated without case sensitivity. Selected records and all
+associated items are deleted together in one transaction without changing stock.
+Missing or already deleted records are skipped. Returns 200 with
+`{ success, message, data: { requestedCount, deletedCount } }`, where requestedCount
+is the number of unique selected IDs and deletedCount counts removed records.
+The bulk endpoint accepts JSON bodies up to 512 KB.
+
+Run focused checks with `node --test tests/waste.test.js tests/waste-date.test.js tests/waste-bulk-delete.test.js` from backend.
 These use mocked database operations; live database rollback is not covered.

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { deactivateAdminUser, selectAdminActiveUserId, selectAdminUsers, updateAdminUser } from "./adminSlice";
 import { AdminProductImportReport } from "./AdminProductImportReport";
+import "./productSelection.css";
 
 export function AdminView({
   isLoggedIn,
@@ -23,6 +24,7 @@ export function AdminView({
   user,
   busyKey,
   products,
+  productPagination,
   productImportResult,
   shops,
   units,
@@ -32,8 +34,10 @@ export function AdminView({
   onCreateShop,
   onCreateUnit,
   onProductDelete,
+  onProductsDelete,
   onProductEdit,
   onProductSearch,
+  onProductPageChange,
   onShopDelete,
   onShopEdit,
   onUnitEdit,
@@ -46,29 +50,33 @@ export function AdminView({
   const activeUserId = useSelector(selectAdminActiveUserId);
   const catalogStatus = useSelector((state) => state.catalog.status);
   const productSearchStatus = useSelector((state) => state.catalog.adminProductSearch.status);
+  const productSearchQuery = useSelector((state) => state.catalog.adminProductSearch.query);
+  const productLoadError = useSelector((state) => state.catalog.error);
+  const requestedProductPage = useSelector((state) => state.catalog.adminProductSearch.requestedPage);
   const [activeSection, setActiveSection] = useState("branches");
   const sectionLoading = activeSection === "products"
-    ? catalogStatus.products === "loading" || productSearchStatus === "loading"
+    ? productSearchStatus === "loading"
     : catalogStatus[activeSection === "branches" ? "shops" : activeSection] === "loading";
   const [branchSearch, setBranchSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
-  const isFirstProductSearch = useRef(true);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
   const productSearchHandler = useRef(onProductSearch);
   const [userSearch, setUserSearch] = useState("");
   const [openUserMenu, setOpenUserMenu] = useState(null);
   const [selectedUserBranch, setSelectedUserBranch] = useState({});
   const canCreateShop = !isShopkeeper || !user?.shopId;
   const showProductSection = !isShopkeeper;
+  const showProductSelection = user?.role === "admin";
+  const productSearchPending = productSearch.trim() !== productSearchQuery.trim();
+  const productActionsDisabled = !isLoggedIn || Boolean(busyKey) || Boolean(activeUserId);
+  const productSelectionDisabled = productActionsDisabled || sectionLoading || productSearchPending;
 
   useEffect(() => {
     productSearchHandler.current = onProductSearch;
   }, [onProductSearch]);
 
   useEffect(() => {
-    if (isFirstProductSearch.current) {
-      isFirstProductSearch.current = false;
-      return;
-    }
+    if (productSearch.trim() === productSearchQuery.trim()) return;
 
     const timer = setTimeout(
       () => productSearchHandler.current(productSearch),
@@ -76,7 +84,7 @@ export function AdminView({
     );
 
     return () => clearTimeout(timer);
-  }, [productSearch]);
+  }, [productSearch, productSearchQuery]);
 
   const sections = [
     {
@@ -141,9 +149,55 @@ export function AdminView({
   }, [users, shops, userSearch]);
 
   const branchPage = useTablePage(filteredShops, branchSearch);
-  const productPage = useTablePage(filteredProducts, productSearch);
+  const productPage = {
+    rows: filteredProducts,
+    page: productPagination.page,
+    total: productPagination.total,
+    pageSize: productPagination.limit,
+    onPageChange: onProductPageChange,
+  };
   const unitPage = useTablePage(units, "units");
   const userPage = useTablePage(filteredUsers, userSearch);
+
+  const selectedProducts = useMemo(() => new Set(selectedProductIds), [selectedProductIds]);
+  const pageProductIds = productPage.rows.map((product) => String(product._id));
+  const allPageProductsSelected = pageProductIds.length > 0 &&
+    pageProductIds.every((id) => selectedProducts.has(id));
+  const somePageProductsSelected = pageProductIds.some((id) => selectedProducts.has(id));
+
+  const handleProductSelection = (productId, checked) => {
+    if (productSelectionDisabled || !showProductSelection) return;
+
+    const next = new Set(selectedProducts);
+    if (checked) next.add(productId);
+    else next.delete(productId);
+    setSelectedProductIds([...next]);
+  };
+
+  const handlePageProductSelection = (checked) => {
+    if (productSelectionDisabled || !showProductSelection) return;
+
+    const next = new Set(selectedProducts);
+    pageProductIds.forEach((id) => {
+      if (checked) next.add(id);
+      else next.delete(id);
+    });
+    setSelectedProductIds([...next]);
+  };
+
+  const handleDeleteSelectedProducts = async () => {
+    if (productSelectionDisabled || !showProductSelection || !selectedProducts.size) return;
+
+    if (await onProductsDelete([...selectedProducts])) {
+      setSelectedProductIds([]);
+    }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if (await onProductDelete(productId)) {
+      setSelectedProductIds((current) => current.filter((id) => id !== String(productId)));
+    }
+  };
 
   const getUserBranch = (item) => {
     if (!item?.shopId) return null;
@@ -223,8 +277,11 @@ export function AdminView({
             <button
               key={section.id}
               type="button"
-              onClick={() => setActiveSection(section.id)}
-              disabled={!isLoggedIn}
+              onClick={() => {
+                setSelectedProductIds([]);
+                setActiveSection(section.id);
+              }}
+              disabled={!isLoggedIn || Boolean(busyKey)}
               style={{
                 padding: "10px 22px",
                 border: "none",
@@ -396,8 +453,13 @@ export function AdminView({
               <input
                 type="text"
                 placeholder="Search products..."
+                aria-label="Search products"
                 value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
+                onChange={(e) => {
+                  setSelectedProductIds([]);
+                  setProductSearch(e.target.value);
+                }}
+                disabled={productActionsDisabled}
                 style={{
                   width: "260px",
                   padding: "9px 12px",
@@ -411,7 +473,7 @@ export function AdminView({
                 type="button"
                 className="primary-action"
                 onClick={onImportProducts}
-                disabled={!isLoggedIn || Boolean(busyKey)}
+                disabled={productActionsDisabled}
               >
                 <FileSpreadsheet size={16} />
                 {busyKey === "product-import" ? "Importing..." : "Import Excel"}
@@ -421,7 +483,7 @@ export function AdminView({
                 type="button"
                 className="primary-action"
                 onClick={onDownloadProducts}
-                disabled={!isLoggedIn}
+                disabled={productActionsDisabled}
               >
                 <Download size={16} />
                 Download Excel
@@ -431,7 +493,7 @@ export function AdminView({
                 type="button"
                 className="primary-action"
                 onClick={onCreateProduct}
-                disabled={!isLoggedIn}
+                disabled={productActionsDisabled}
               >
                 <Plus size={16} />
                 Create product
@@ -443,12 +505,63 @@ export function AdminView({
             <AdminProductImportReport result={productImportResult} />
           )}
 
+          {productSearchStatus === "failed" && (
+            <div role="alert" className="product-selection-toolbar">
+              <span>{productLoadError || "Products could not be loaded."}</span>
+              <button type="button" onClick={() => onProductPageChange(requestedProductPage)} disabled={productSelectionDisabled}>
+                Retry
+              </button>
+            </div>
+          )}
+
+          {showProductSelection && (
+            <div className="product-selection-toolbar">
+              <span className="product-selection-count" role="status">
+                {selectedProducts.size} {selectedProducts.size === 1 ? "product" : "products"} selected
+              </span>
+              <span className="product-selection-help">Select products across pages.</span>
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => setSelectedProductIds([])}
+                disabled={productSelectionDisabled || !selectedProducts.size}
+              >
+                Clear selection
+              </button>
+              <button
+                type="button"
+                className="product-selection-delete"
+                onClick={handleDeleteSelectedProducts}
+                disabled={productSelectionDisabled || !selectedProducts.size}
+              >
+                <Trash2 size={16} aria-hidden="true" />
+                {busyKey === "admin-products-delete" ? "Deleting..." : "Delete selected"}
+              </button>
+            </div>
+          )}
+
           <div aria-busy={sectionLoading}>
             {sectionLoading && <LoadingSpinner label={`Loading ${activeSection}...`} />}
             <TableScroll label="Management records" className="admin-table-wrap" hidden={sectionLoading}>
             <table>
               <thead>
                 <tr>
+                  {showProductSelection && (
+                    <th scope="col" className="product-selection-cell">
+                      <input
+                        type="checkbox"
+                        className="product-selection-checkbox"
+                        aria-label="Select all products on this page"
+                        title="Select all products on this page"
+                        checked={allPageProductsSelected}
+                        ref={(checkbox) => {
+                          if (checkbox) checkbox.indeterminate = somePageProductsSelected && !allPageProductsSelected;
+                        }}
+                        onChange={(event) => handlePageProductSelection(event.target.checked)}
+                        disabled={productSelectionDisabled || !pageProductIds.length}
+                      />
+                    </th>
+                  )}
                   <th>Item code</th>
                   <th>Description</th>
                   <th>Category</th>
@@ -461,6 +574,18 @@ export function AdminView({
               <tbody>
                 {productPage.rows.map((product) => (
                   <tr key={product._id}>
+                    {showProductSelection && (
+                      <td className="product-selection-cell">
+                        <input
+                          type="checkbox"
+                          className="product-selection-checkbox"
+                          aria-label={`Select product ${product.itemCode}: ${product.description}`}
+                          checked={selectedProducts.has(String(product._id))}
+                          onChange={(event) => handleProductSelection(String(product._id), event.target.checked)}
+                          disabled={productSelectionDisabled}
+                        />
+                      </td>
+                    )}
                     <td>{product.itemCode}</td>
 
                     <td>{product.description}</td>
@@ -481,6 +606,7 @@ export function AdminView({
                         className="icon-button"
                         title="Edit product"
                         onClick={() => onProductEdit(product)}
+                        disabled={productSelectionDisabled}
                       >
                         <Pencil size={16} />
                       </button>
@@ -489,7 +615,8 @@ export function AdminView({
                         type="button"
                         className="icon-button secondary-action"
                         title="Delete product"
-                        onClick={() => onProductDelete(product._id)}
+                        onClick={() => handleDeleteProduct(product._id)}
+                        disabled={productSelectionDisabled}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -499,7 +626,7 @@ export function AdminView({
 
                 {!filteredProducts.length && (
                   <tr>
-                    <td colSpan="6" className="empty-cell">
+                    <td colSpan={showProductSelection ? 7 : 6} className="empty-cell">
                       {productSearch
                         ? "No products found."
                         : "No products loaded."}
@@ -509,7 +636,7 @@ export function AdminView({
               </tbody>
             </table>
             </TableScroll>
-            {!sectionLoading && <TablePagination {...productPage} label="Products" disabled={Boolean(busyKey) || Boolean(activeUserId)} />}
+            {!sectionLoading && <TablePagination {...productPage} label="Products" disabled={productSelectionDisabled} />}
           </div>
         </section>
       )}

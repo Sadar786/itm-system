@@ -14,6 +14,7 @@ import {
   createCatalogShop,
   createCatalogUnit,
   deleteCatalogProduct,
+  deleteCatalogProducts,
   deleteCatalogShop,
   deleteCatalogUnit,
   fetchCatalogProducts,
@@ -24,8 +25,8 @@ import {
   searchCatalogProducts,
   selectAdminProductSearchQuery,
   selectAdminProductSearchResults,
+  selectAdminProductPagination,
   selectCatalogCategories,
-  selectCatalogProducts,
   selectCatalogShops,
   selectCatalogUnits,
   updateCatalogProduct,
@@ -76,15 +77,17 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
   const token = useSelector(selectToken);
   const user = useSelector(selectUser);
   const isLoggedIn = useSelector(selectIsLoggedIn);
-  const products = useSelector(selectCatalogProducts);
   const shops = useSelector(selectCatalogShops);
   const categories = useSelector(selectCatalogCategories);
   const units = useSelector(selectCatalogUnits);
   const productSearchQuery = useSelector(selectAdminProductSearchQuery);
   const productSearchResults = useSelector(selectAdminProductSearchResults);
+  const productPagination = useSelector(selectAdminProductPagination);
 
   const productImportInputRef = useRef(null);
   const productImportRequestRef = useRef(0);
+  const productDeletePendingRef = useRef(false);
+  const productSearchRequestRef = useRef(0);
   const [busyKey, setBusyKey] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [productImportResult, setProductImportResult] = useState(null);
@@ -98,7 +101,6 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
 
   const isAdmin = user?.role === "admin";
   const isShopkeeper = user?.role === "shop_keeper";
-  const displayedProducts = productSearchQuery ? productSearchResults : products;
 
   useEffect(() => {
     if (token && isAdmin) {
@@ -107,17 +109,19 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
   }, [dispatch, isAdmin, token]);
 
   useEffect(() => {
-    dispatch(clearAdminProductSearch());
+    if (token && isAdmin) {
+      dispatch(searchCatalogProducts({ search: "", page: 1 }));
+    }
 
     return () => {
       productImportRequestRef.current += 1;
       dispatch(clearAdminProductSearch());
     };
-  }, [dispatch]);
+  }, [dispatch, isAdmin, token]);
 
   const clearNotice = () => onNotice?.({ error: "", message: "" });
   const showError = (error) =>
-    onNotice?.({ error: error?.message || "Admin action failed.", message: "" });
+    onNotice?.({ error: (typeof error === "string" ? error : error?.message) || "Admin action failed.", message: "" });
   const showSuccess = (message) => onNotice?.({ error: "", message });
 
   const resetShopForm = () => {
@@ -217,11 +221,10 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
   };
 
   const refreshProducts = async () => {
-    await dispatch(fetchCatalogProducts()).unwrap();
-
-    if (productSearchQuery) {
-      await dispatch(searchCatalogProducts(productSearchQuery)).unwrap();
-    }
+    await Promise.all([
+      dispatch(fetchCatalogProducts()).unwrap(),
+      dispatch(searchCatalogProducts({ search: productSearchQuery, page: productPagination.page })).unwrap(),
+    ]);
   };
 
   const handleShopFormSubmit = async (event) => {
@@ -379,19 +382,69 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
   };
 
   const deleteProduct = async (productId) => {
-    if (!await confirm({ title: "Delete product?", message: "Are you sure you want to delete this product? This cannot be undone.", confirmLabel: "Delete product" })) return;
-
+    if (!isLoggedIn || !isAdmin || busyKey || productDeletePendingRef.current) return false;
+    productDeletePendingRef.current = true;
     setBusyKey("admin-product-delete");
-    clearNotice();
 
     try {
+      if (!await confirm({ title: "Delete product?", message: "Are you sure you want to delete this product? This cannot be undone.", confirmLabel: "Delete product" })) return false;
+      clearNotice();
       await dispatch(deleteCatalogProduct(productId)).unwrap();
-      await refreshProducts();
       resetProductForm();
-      showSuccess("Product deleted successfully.");
+      try {
+        await refreshProducts();
+        showSuccess("Product deleted successfully.");
+      } catch {
+        showError("Product was deleted, but the list could not be refreshed. Please refresh the page.");
+      }
+      return true;
     } catch (error) {
       showError(error);
+      return false;
     } finally {
+      productDeletePendingRef.current = false;
+      setBusyKey("");
+    }
+  };
+
+  const deleteProducts = async (productIds) => {
+    if (!isLoggedIn || !isAdmin || busyKey || isImporting || productDeletePendingRef.current) return false;
+
+    const ids = [...new Set(productIds)];
+    if (!ids.length) return false;
+
+    productDeletePendingRef.current = true;
+    setBusyKey("admin-products-delete");
+
+    try {
+      const count = ids.length;
+      const accepted = await confirm({
+        title: `Delete ${count} selected product${count === 1 ? "" : "s"}?`,
+        message: `This will permanently delete the ${count} selected product${count === 1 ? "" : "s"}. This cannot be undone.`,
+        confirmLabel: `Delete ${count} product${count === 1 ? "" : "s"}`,
+      });
+      if (!accepted) return false;
+
+      clearNotice();
+      const result = await dispatch(deleteCatalogProducts(ids)).unwrap();
+      resetProductForm();
+
+      try {
+        await refreshProducts();
+        showSuccess(result.message);
+      } catch (error) {
+        const detail = typeof error === "string" ? error : error?.message;
+        onNotice?.({
+          message: result.message,
+          error: `Products were deleted, but the list could not be refreshed. Please refresh the page.${detail ? ` ${detail}` : ""}`,
+        });
+      }
+      return true;
+    } catch (error) {
+      showError(error);
+      return false;
+    } finally {
+      productDeletePendingRef.current = false;
       setBusyKey("");
     }
   };
@@ -464,23 +517,22 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
     }
   };
 
-  const handleProductSearch = async (search = "") => {
+  const loadProductPage = async (search = "", page = 1) => {
+    if (productDeletePendingRef.current) return;
+    const requestId = ++productSearchRequestRef.current;
     const query = search.trim();
-
-    if (!query) {
-      dispatch(clearAdminProductSearch());
-      return;
-    }
 
     setBusyKey("admin-products-search");
     clearNotice();
 
     try {
-      await dispatch(searchCatalogProducts(query)).unwrap();
+      await dispatch(searchCatalogProducts({ search: query, page })).unwrap();
     } catch (error) {
-      showError(error);
+      if (requestId === productSearchRequestRef.current) showError(error);
     } finally {
-      setBusyKey("");
+      if (requestId === productSearchRequestRef.current) {
+        setBusyKey((current) => current === "admin-products-search" ? "" : current);
+      }
     }
   };
 
@@ -512,7 +564,8 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
         isLoggedIn={isLoggedIn}
         isShopkeeper={isShopkeeper}
         user={user}
-        products={displayedProducts}
+        products={productSearchResults}
+        productPagination={productPagination}
         productImportResult={productImportResult}
         shops={shops}
         units={units}
@@ -522,8 +575,10 @@ export function AdminFeature({ onNotice, onShopAssigned }) {
         onCreateShop={openCreateShopModal}
         onCreateUnit={openCreateUnitModal}
         onProductDelete={deleteProduct}
+        onProductsDelete={deleteProducts}
         onProductEdit={editProduct}
-        onProductSearch={handleProductSearch}
+        onProductSearch={loadProductPage}
+        onProductPageChange={(page) => loadProductPage(productSearchQuery, page)}
         onNotice={onNotice}
         onShopDelete={deleteShop}
         onShopEdit={editShop}

@@ -116,11 +116,21 @@ export const getOneProduct = async (req, res) => {
 export const getProducts = async (req, res) => {
   try {
     const {
-      page = 1,
+      page: requestedPage = 1,
       limit = 10,
       search = "",
       categoryId,
     } = req.query;
+
+    const pageNumber = Number(requestedPage);
+    const pageSize = Number(limit);
+    if (!Number.isSafeInteger(pageNumber) || pageNumber < 1 ||
+        !Number.isSafeInteger(pageSize) || pageSize < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Page and limit must be positive integers",
+      });
+    }
 
     const query = {};
 
@@ -137,24 +147,26 @@ export const getProducts = async (req, res) => {
       query.categoryId = categoryId;
     }
 
-    const skip = (page - 1) * limit;
+    const total = await Product.countDocuments(query);
+    const pages = Math.ceil(total / pageSize);
+    const page = Math.min(pageNumber, Math.max(1, pages));
+    const skip = (page - 1) * pageSize;
 
     const products = await Product.find(query)
       .populate("categoryId", "name")
       .populate("defaultUnitId", "name shortName")
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .skip(skip)
-      .limit(Number(limit));
-
-    const total = await Product.countDocuments(query);
+      .limit(pageSize);
 
     return res.status(200).json({
       success: true,
       data: products,
       pagination: {
         total,
-        page: Number(page),
-        pages: Math.ceil(total / limit),
+        page,
+        pages,
+        limit: pageSize,
       },
     });
   } catch (error) {

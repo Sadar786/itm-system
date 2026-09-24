@@ -1,6 +1,6 @@
-import { downloadBlob, parseFilename } from '../utils/download'
+import { downloadBlob, parseFilename } from '../utils/download.js'
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+export const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api'
 
 const authHeaders = (token) => ({
   Authorization: `Bearer ${token}`,
@@ -211,8 +211,8 @@ export const verifyForgotPasswordOtp = async ({
 };
 
 
-export const getProducts = (token, search = '') =>
-  apiJson(`/products?limit=500${search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''}`, token)
+export const getProducts = (token, search = '', { page = 1, limit = 500 } = {}) =>
+  apiJson(`/products?page=${page}&limit=${limit}${search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''}`, token)
 
 export const searchProducts = (token, search, limit = 20) => {
   const params = new URLSearchParams();
@@ -317,6 +317,13 @@ export const deleteProduct = ({ token, productId }) =>
     method: 'DELETE',
   })
 
+export const deleteProductsBulk = ({ token, productIds }) =>
+  apiRequest('/products/bulk', {
+    token,
+    method: 'DELETE',
+    body: { productIds },
+  })
+
 export const getInventory = ({ token, shopId }) => {
   const params = new URLSearchParams()
   if (shopId?.trim()) {
@@ -348,6 +355,9 @@ export const updateWasteStatus = ({ token, id, status }) =>
 
 export const deleteWaste = ({ token, id }) =>
   apiRequest(`/wastes/${id}`, { token, method: 'DELETE' })
+
+export const deleteWastesBulk = ({ token, wasteIds }) =>
+  apiRequest('/wastes/bulk', { token, method: 'DELETE', body: { wasteIds } })
 
 export const getWastes = ({ token, filters = {}, page = 1, signal }) => {
   const params = new URLSearchParams({ page, limit: 20 })

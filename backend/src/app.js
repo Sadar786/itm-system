@@ -19,6 +19,8 @@ const app = express();
 app.use(cors());
 // A selection of 10,000 product IDs exceeds the default 100 KB JSON limit.
 app.delete("/api/products/bulk", express.json({ limit: "512kb" }));
+// Allow the same maximum selection size for wastage deletion.
+app.delete("/api/wastes/bulk", express.json({ limit: "512kb" }));
 app.use(express.json());
 app.use("/api/analytics", analyticsRoutes);
 
