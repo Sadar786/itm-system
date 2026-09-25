@@ -214,13 +214,14 @@ export const verifyForgotPasswordOtp = async ({
 export const getProducts = (token, search = '', { page = 1, limit = 500 } = {}) =>
   apiJson(`/products?page=${page}&limit=${limit}${search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''}`, token)
 
-export const searchProducts = (token, search, limit = 20) => {
+export const searchProducts = (token, search, limit = 20, { signal, isActive } = {}) => {
   const params = new URLSearchParams();
 
   params.set("search", search.trim());
   params.set("limit", limit);
+  if (isActive !== undefined) params.set("isActive", String(isActive));
 
-  return apiJson(`/products?${params.toString()}`, token);
+  return apiJson(`/products?${params.toString()}`, token, { signal });
 };
 
 export const downloadProductsExcel = async ({ token }) => {

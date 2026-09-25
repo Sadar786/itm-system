@@ -133,6 +133,12 @@ export const getProducts = async (req, res) => {
     }
 
     const query = {};
+    if (req.query.isActive !== undefined) {
+      if (!["true", "false"].includes(req.query.isActive)) {
+        return res.status(400).json({ success: false, message: "isActive must be true or false" });
+      }
+      query.isActive = req.query.isActive === "true";
+    }
 
     // Search by name or itemCode
     if (search) {

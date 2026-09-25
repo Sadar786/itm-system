@@ -1,28 +1,47 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { searchProducts } from "../../services/api";
 import { Plus, Trash2, RefreshCw, Send } from "lucide-react";
 import { Modal } from "../../components/Modal";
 import { formatProductName } from "../../utils/format";
 import { getWastageDateRange } from "./wastageDate";
 
-export function RecordWastageModal({ isOpen, onClose, busy, error, onSubmit,
+export function RecordWastageModal({ token, isOpen, onClose, busy, error, onSubmit,
   isAdmin, branch, onBranchChange, assignedName, shops, date, onDateChange,
   reason, onReasonChange, remarks, onRemarksChange, products, units, items, onItemsChange }) {
   const [search, setSearch] = useState("");
-  const [productId, setProductId] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [searchResult, setSearchResult] = useState(null);
+  const productId = selectedProduct?._id || "";
   const [unitId, setUnitId] = useState("");
   const [quantity, setQuantity] = useState("");
   const { minDate, maxDate } = getWastageDateRange();
-  const selectedProduct = products.find((product) => product._id === productId);
-  const matches = products.filter((product) =>
-    !items.some((item) => item.productId === product._id) &&
-    formatProductName(product).toLowerCase().includes(search.trim().toLowerCase()));
+  const query = search.trim();
+  const currentSearch = searchResult?.query === query && searchResult?.token === token;
+  const searching = Boolean(query && !selectedProduct && !currentSearch);
+  const searchError = currentSearch ? searchResult.error : "";
+  const matches = (currentSearch ? searchResult.products : []).filter((product) =>
+    product.isActive !== false && !items.some((item) => item.productId === product._id));
+
+  useEffect(() => {
+    if (!isOpen || !token || !query || selectedProduct) return;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const result = await searchProducts(token, query, 20, { signal: controller.signal, isActive: true });
+        if (!controller.signal.aborted) setSearchResult({ token, query, products: result.data || [], error: "" });
+      } catch (failure) {
+        if (!controller.signal.aborted) setSearchResult({ token, query, products: [], error: failure.message || "Unable to search products. Please try again." });
+      }
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [isOpen, token, query, selectedProduct]);
   const validDraft = productId && unitId && Number.isFinite(Number(quantity)) && Number(quantity) >= 0.000001;
   const hasDraft = Boolean(search || productId || unitId || quantity);
 
   const addItem = () => {
     if (!validDraft || items.length >= 100 || items.some((item) => item.productId === productId)) return;
-    onItemsChange([...items, { productId, unitId, quantity: Number(quantity) }]);
-    setSearch(""); setProductId(""); setUnitId(""); setQuantity("");
+    onItemsChange([...items, { productId, product: selectedProduct, unitId, quantity: Number(quantity) }]);
+    setSearch(""); setSelectedProduct(null); setUnitId(""); setQuantity("");
   };
 
   return <Modal isOpen={isOpen} onClose={onClose} title="Record Wastage">
@@ -43,10 +62,10 @@ export function RecordWastageModal({ isOpen, onClose, busy, error, onSubmit,
         </div>
         <label>Reason<input required value={reason} onChange={(event) => onReasonChange(event.target.value)} placeholder="For example, spoiled or damaged" /></label>
         <div className="product-autocomplete">
-          <label>Product<input value={search} autoComplete="off" placeholder="Search product by code or description" onChange={(event) => { setSearch(event.target.value); setProductId(""); setUnitId(""); }} /></label>
-          {search.trim() && !selectedProduct && (matches.length ? <div className="product-search-results">
+          <label>Product<input value={search} autoComplete="off" placeholder="Search product by code or description" onChange={(event) => { setSearch(event.target.value); setSelectedProduct(null); setSearchResult(null); setUnitId(""); }} /></label>
+          {query && !selectedProduct && (searching ? <div className="product-search-empty" role="status">Searching products...</div> : searchError ? <div className="wastage-error" role="alert">{searchError}</div> : matches.length ? <div className="product-search-results">
             {matches.map((product) => <button type="button" className="product-search-item" key={product._id} onClick={() => {
-              setProductId(product._id);
+              setSelectedProduct(product);
               setSearch(formatProductName(product));
               const defaultUnit = product.defaultUnitId?._id || product.defaultUnitId;
               setUnitId(units.some((unit) => unit._id === defaultUnit) ? defaultUnit : "");
@@ -68,7 +87,7 @@ export function RecordWastageModal({ isOpen, onClose, busy, error, onSubmit,
         {items.length > 0 && <div className="transfer-items-list">
           <div className="transfer-items-header"><strong>Products to Record ({items.length})</strong></div>
           {items.map((item) => {
-            const product = products.find((entry) => entry._id === item.productId);
+            const product = item.product || products.find((entry) => entry._id === item.productId);
             const unit = units.find((entry) => entry._id === item.unitId);
             return <div className="transfer-item-row" key={item.productId}>
               <div className="transfer-item-info"><strong>{formatProductName(product)}</strong><span>{product?.itemCode || "-"}</span></div>

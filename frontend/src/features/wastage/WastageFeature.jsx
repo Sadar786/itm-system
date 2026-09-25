@@ -87,13 +87,13 @@ export function WastageFeature({ shopId, dateRange, search, onSearchChange }) {
       setOpen(true);
     }}><Plus size={16} /> Record Wastage</button><div className="stock-search"><Search size={17} /><input aria-label="Search wastage" placeholder="Search product, branch, reason or reference..." value={search} onChange={(event) => onSearchChange(event.target.value)} maxLength={200} /></div></div>
     <RecordWastageModal
-      isOpen={open} onClose={() => { if (!busy) setOpen(false); }}
+      token={token} isOpen={open} onClose={() => { if (!busy) setOpen(false); }}
       busy={busy} error={error} onSubmit={submit}
       isAdmin={isAdmin} branch={branch} onBranchChange={setBranch}
       assignedName={assignedName} shops={shops} date={date} onDateChange={setDate}
       reason={reason} onReasonChange={setReason} remarks={remarks} onRemarksChange={setRemarks}
       products={products} units={units} items={items} onItemsChange={setItems}
     />
-    <WastageHistory key={`${user?.role}-${assignedShop}-${dateRange.startDate}-${dateRange.endDate}`} refreshVersion={historyVersion} dateRange={dateRange} search={search} shopId={isAdmin ? shopId : ""} />
+    <WastageHistory key={`${user?.role}-${assignedShop}`} refreshVersion={historyVersion} dateRange={dateRange} search={search} shopId={isAdmin ? shopId : ""} />
   </section>;
 }

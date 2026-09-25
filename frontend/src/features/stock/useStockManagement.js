@@ -100,12 +100,13 @@ export function useStockManagement({ dateFilters, onNotice, shopId }) {
   );
   const selectedTransferProduct = useMemo(
     () =>
+      transfer.selectedProduct ||
       transferSearchProducts.find(
         (product) => product._id === transfer.productId,
       ) ||
       products.find((product) => product._id === transfer.productId) ||
       null,
-    [products, transfer.productId, transferSearchProducts],
+    [products, transfer.productId, transfer.selectedProduct, transferSearchProducts],
   );
   const filteredAddProducts = useMemo(
     () => (addProductSearch.trim() ? addSearchProducts : products),

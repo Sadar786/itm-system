@@ -2,11 +2,11 @@ import { TableScroll } from "../../components/TableScroll";
 import { TablePagination } from "../../components/TablePagination";
 import { useConfirm } from "../../components/confirmationContext";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { ChevronDown, Trash2 } from "lucide-react";
 import { selectToken, selectUser } from "../auth/authSlice";
-import { getWastes, updateWasteStatus, deleteWaste } from "../../services/api";
+import { getWastes, updateWasteStatus, deleteWaste, deleteWastesBulk } from "../../services/api";
 import { Modal } from "../../components/Modal";
 import { formatProductName } from "../../utils/format";
 const displayDate = (value) =>
@@ -29,6 +29,10 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
   const isAdmin = user?.role === "admin";
   const [activeId, setActiveId] = useState(null);
   const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
+  const actionPending = useRef(false);
+  const mounted = useRef(false);
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -37,6 +41,8 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
   const [pageSelection, setPageSelection] = useState({ key: filterKey, page: 1 });
   if (pageSelection.key !== filterKey) {
     setPageSelection({ key: filterKey, page: 1 });
+    setSelectedIds([]); setSelected(null);
+    setActionError(""); setActionSuccess("");
   }
   const page = pageSelection.key === filterKey ? pageSelection.page : 1;
   const requestKey = JSON.stringify([
@@ -53,6 +59,27 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
   const loading = !current;
   const error = current ? result.error : "";
   const rows = current ? result.data || [] : [];
+  const currentScope = useRef(filterKey);
+  const selectedSet = new Set(selectedIds);
+  const pageIds = rows.map((waste) => waste._id);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedSet.has(id));
+  const somePageSelected = pageIds.some((id) => selectedSet.has(id));
+  const selectionDisabled = !isAdmin || !token || Boolean(activeId) || loading || Boolean(error);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  useEffect(() => { currentScope.current = filterKey; }, [filterKey]);
+
+  const toggleSelection = (ids, checked) => {
+    if (selectionDisabled) return;
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      ids.forEach((id) => { if (checked) next.add(id); else next.delete(id); });
+      return [...next];
+    });
+  };
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(async () => {
@@ -88,36 +115,72 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
       controller.abort();
     };
   }, [token, startDate, endDate, search, shopId, requestKey, page, filterKey]);
-  const changeWaste = async (waste, status) => {
-    if (!isAdmin || activeId) return;
-    if (status && waste.status && waste.status !== "pending") return;
-    if (!status && !await confirm({
-      title: "Delete wastage?",
-      message: "This wastage record and its items will be permanently deleted. This cannot be undone.",
-      reference: waste.wasteNo,
-      items: waste.items.map((item) => ({
-        id: item._id,
-        name: productName(item),
-        quantity: `${item.quantity} ${item.unitId?.shortName || item.unitId?.name || ""}`.trim(),
-      })),
-      confirmLabel: "Delete wastage",
-    })) return;
-    setActiveId(waste._id);
-    setActionError("");
+  const runAction = async ({ id, confirmation, request, onSuccess }) => {
+    if (!isAdmin || !token || loading || actionPending.current) return;
+    actionPending.current = true;
+    setActiveId(id); setActionError(""); setActionSuccess("");
+    const scope = filterKey;
+    const isCurrent = () => mounted.current && currentScope.current === scope;
     try {
-      if (status) {
-        await updateWasteStatus({ token, id: waste._id, status });
-        setSelected((previous) => previous?._id === waste._id ? { ...previous, status } : previous);
-      } else {
-        await deleteWaste({ token, id: waste._id });
-        setSelected((previous) => previous?._id === waste._id ? null : previous);
+      if (confirmation && !await confirm(confirmation)) return;
+      if (!isCurrent()) return;
+      const response = await request();
+      if (!mounted.current) return;
+      if (isCurrent()) {
+        onSuccess();
+        setActionSuccess(response.message || "Wastage updated successfully.");
       }
       setRevision((value) => value + 1);
     } catch (failure) {
-      setActionError(failure.message || "Unable to update wastage.");
+      if (isCurrent()) setActionError(failure.message || "Unable to update wastage.");
     } finally {
-      setActiveId(null);
+      actionPending.current = false;
+      if (mounted.current) setActiveId(null);
     }
+  };
+  const removeSelected = (ids) => {
+    const removed = new Set(ids);
+    setSelectedIds((previous) => previous.filter((id) => !removed.has(id)));
+    setSelected((previous) => removed.has(previous?._id) ? null : previous);
+  };
+  const changeWaste = (waste, status) => {
+    if (status && waste.status && waste.status !== "pending") return;
+    return runAction({
+      id: waste._id,
+      confirmation: status ? null : {
+        title: "Delete wastage?",
+        message: "This wastage record and its items will be permanently deleted. This cannot be undone.",
+        reference: waste.wasteNo,
+        items: waste.items.map((item) => ({
+          id: item._id,
+          name: productName(item),
+          quantity: (item.quantity + " " + (item.unitId?.shortName || item.unitId?.name || "")).trim(),
+        })),
+        confirmLabel: "Delete wastage",
+      },
+      request: () => status
+        ? updateWasteStatus({ token, id: waste._id, status })
+        : deleteWaste({ token, id: waste._id }),
+      onSuccess: () => {
+        if (status) setSelected((previous) => previous?._id === waste._id ? { ...previous, status } : previous);
+        else removeSelected([waste._id]);
+      },
+    });
+  };
+  const deleteSelectedWastes = () => {
+    if (selectionDisabled || !selectedIds.length) return;
+    const wasteIds = [...selectedIds];
+    const count = wasteIds.length;
+    return runAction({
+      id: "bulk",
+      confirmation: {
+        title: "Delete " + count + " selected wastage record" + (count === 1 ? "" : "s") + "?",
+        message: "The selected wastage records and all their items will be permanently deleted. This cannot be undone.",
+        confirmLabel: "Delete " + count + " record" + (count === 1 ? "" : "s"),
+      },
+      request: () => deleteWastesBulk({ token, wasteIds }),
+      onSuccess: () => removeSelected(wasteIds),
+    });
   };
   const canChangeStatus = (waste) => isAdmin && (!waste.status || waste.status === "pending");
   const renderStatus = (waste) => (
@@ -151,17 +214,27 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
         <div>
           <h3 id="wastage-history-heading">Wastage History</h3>
           <span>
-            {loading ? "Loading records..." : (result?.pagination?.total || 0) + " records"}
+            {loading ? "Loading records..." : error ? "Records unavailable" : (result?.pagination?.total || 0) + " records"}
           </span>
         </div>
       </div>
+      {isAdmin && <div className="wastage-selection-toolbar">
+        <span className="wastage-selection-count" role="status">{selectedIds.length} wastage {selectedIds.length === 1 ? "record" : "records"} selected</span>
+        <span className="wastage-selection-help">Select records across pages.</span>
+        <button type="button" className="secondary-action" disabled={Boolean(activeId) || !selectedIds.length} onClick={() => setSelectedIds([])}>Clear selection</button>
+        <button type="button" className="wastage-bulk-delete" disabled={selectionDisabled || !selectedIds.length} onClick={deleteSelectedWastes}>
+          <Trash2 size={16} aria-hidden="true" />{activeId === "bulk" ? "Deleting..." : "Delete selected"}
+        </button>
+      </div>}
+      {actionSuccess && <p role="status" className="wastage-success">{actionSuccess}</p>}
       {actionError && <p role="alert" className="wastage-error">{actionError}</p>}
       {loading ? (
         <LoadingSpinner label="Loading wastage history..." />
       ) : error ? (
-        <p role="alert" className="wastage-error">
-          {error}
-        </p>
+        <div className="wastage-load-error">
+          <p role="alert" className="wastage-error">{actionSuccess ? "The action succeeded, but history could not be refreshed. " : ""}{error}</p>
+          <button type="button" disabled={Boolean(activeId)} onClick={() => setRevision((value) => value + 1)}>Retry</button>
+        </div>
       ) : rows.length === 0 ? (
         <p>
           No wastage found for the sidebar dates and search. Check the selected
@@ -172,6 +245,12 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
           <table>
             <thead className="table-head">
               <tr>
+                {isAdmin && <th scope="col" className="wastage-selection-cell">
+                  <input type="checkbox" className="wastage-selection-checkbox" aria-label="Select all wastage records on this page"
+                    checked={allPageSelected} disabled={selectionDisabled || !pageIds.length}
+                    ref={(checkbox) => { if (checkbox) checkbox.indeterminate = somePageSelected && !allPageSelected; }}
+                    onChange={(event) => toggleSelection(pageIds, event.target.checked)} />
+                </th>}
                 <th>Date</th>
                 <th>Reference</th>
                 <th>Branch</th>
@@ -198,6 +277,12 @@ export function WastageHistory({ refreshVersion, dateRange, search, shopId }) {
                     }
                   }}
                 >
+                  {isAdmin && <td className="wastage-selection-cell">
+                    <input type="checkbox" className="wastage-selection-checkbox" aria-label={"Select wastage " + waste.wasteNo}
+                      checked={selectedSet.has(waste._id)} disabled={selectionDisabled}
+                      onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}
+                      onChange={(event) => toggleSelection([waste._id], event.target.checked)} />
+                  </td>}
                   <td className="wastage-date-cell">
                     <strong>{displayDate(waste.wasteDate)}</strong>
                     <small className="wastage-time" title="Time recorded">

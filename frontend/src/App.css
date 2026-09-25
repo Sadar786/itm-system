@@ -2097,6 +2097,9 @@ tr.row-highlight td {
 .transfer-menu .deliver-menu-action:hover:not(:disabled) {
   background: #0f705c;
 }
+.danger-menu-action {
+  width: 80%;
+}
 
 .transfer-menu .danger-menu-action:hover:not(:disabled) {
   background: #9f271d;
