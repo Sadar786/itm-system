@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
   CheckCircle2,
+  Circle,
+  Eye,
+  EyeOff,
   LogIn,
   LogOut,
   RefreshCw,
@@ -26,6 +29,11 @@ import {
   selectSignupOtpSent,
   selectForgotOtpSent,
 } from "../features/auth/authSlice.js";
+import {
+  getPasswordRequirements,
+  getPasswordValidationMessage,
+} from "../utils/passwordValidation.js";
+import "./SessionPanel.css";
 
 export function SessionPanel() {
   const dispatch = useDispatch();
@@ -53,6 +61,19 @@ export function SessionPanel() {
   const [name, setName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formError, setFormError] = useState("");
+  const passwordId = useId();
+  const confirmPasswordId = useId();
+  const requirementsId = `${passwordId}-requirements`;
+  const confirmErrorId = `${confirmPasswordId}-error`;
+  const isSignupForm = authMode === "signup" && !signupOtpSent;
+  const passwordRequirements = getPasswordRequirements(password);
+  const metRequirements = passwordRequirements.filter(({ met }) => met).length;
+  const isPasswordValid = metRequirements === passwordRequirements.length;
+  const passwordsMatch = password === confirmPassword;
+  const showConfirmError = isSignupForm && Boolean(confirmPassword) && !passwordsMatch;
 
   // ============================================================
   // Change Auth Mode
@@ -66,6 +87,9 @@ export function SessionPanel() {
     setName("");
     setConfirmPassword("");
     setOtp("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setFormError("");
 
     dispatch(resetSignupOtp());
     dispatch(resetForgotOtp());
@@ -77,6 +101,8 @@ export function SessionPanel() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (loading) return;
+    setFormError("");
 
     const cleanEmail = email.trim().toLowerCase();
 
@@ -128,13 +154,14 @@ export function SessionPanel() {
 
       if (!name.trim()) return;
       if (!cleanEmail) return;
-      if (!password) return;
-
-      if (password.length < 6) {
+      const passwordError = getPasswordValidationMessage(password);
+      if (passwordError) {
+        setFormError(passwordError);
         return;
       }
 
-      if (password !== confirmPassword) {
+      if (!passwordsMatch) {
+        setFormError("Passwords do not match. Please enter the same password in both fields.");
         return;
       }
 
@@ -299,9 +326,9 @@ export function SessionPanel() {
               ERROR
           ================================================== */}
 
-          {error ? (
-            <div className="auth-error">
-              {error}
+          {formError || error ? (
+            <div className="auth-error" role="alert">
+              {formError || error}
             </div>
           ) : null}
 
@@ -366,31 +393,63 @@ export function SessionPanel() {
           {authMode === "login" ||
           (authMode === "signup" && !signupOtpSent) ||
           (authMode === "forgot" && forgotOtpSent) ? (
-            <label>
-              {authMode === "forgot"
-                ? "New password"
-                : "Password"}
+            <div className="session-password-field">
+              <label htmlFor={passwordId}>
+                {authMode === "forgot" ? "New password" : "Password"}
+              </label>
 
-              <input
-                type="password"
-                value={password}
-                onChange={(event) =>
-                  setPassword(event.target.value)
-                }
-                placeholder={
-                  authMode === "forgot"
-                    ? "Enter your new password"
-                    : "Enter your password"
-                }
-                autoComplete={
-                  authMode === "login"
-                    ? "current-password"
-                    : "new-password"
-                }
-                minLength={6}
-                required
-              />
-            </label>
+              <div className="session-password-input">
+                <input
+                  id={passwordId}
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setFormError("");
+                  }}
+                  placeholder={
+                    authMode === "forgot"
+                      ? "Enter your new password"
+                      : "Enter your password"
+                  }
+                  autoComplete={authMode === "login" ? "current-password" : "new-password"}
+                  minLength={isSignupForm ? 8 : 6}
+                  aria-describedby={isSignupForm ? requirementsId : undefined}
+                  aria-invalid={isSignupForm && Boolean(password) && !isPasswordValid}
+                  required
+                />
+                <button
+                  type="button"
+                  className="session-password-toggle"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  aria-controls={passwordId}
+                >
+                  {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                </button>
+              </div>
+
+              {isSignupForm ? (
+                <div id={requirementsId} className="session-password-requirements">
+                  <p>Password must contain:</p>
+                  <ul>
+                    {passwordRequirements.map(({ id, label, met }) => (
+                      <li key={id} className={met ? "is-met" : "is-missing"}>
+                        {met ? <CheckCircle2 size={14} aria-hidden="true" /> : <Circle size={14} aria-hidden="true" />}
+                        <span>
+                          <span className="session-visually-hidden">{met ? "Met: " : "Missing: "}</span>
+                          {label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <span className="session-visually-hidden" role="status">
+                    {metRequirements} of {passwordRequirements.length} password requirements met.
+                  </span>
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           {/* ==================================================
@@ -398,21 +457,41 @@ export function SessionPanel() {
           ================================================== */}
 
           {authMode === "signup" && !signupOtpSent ? (
-            <label>
-              Confirm password
-
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(event) =>
-                  setConfirmPassword(event.target.value)
-                }
-                placeholder="Confirm password"
-                autoComplete="new-password"
-                minLength={6}
-                required
-              />
-            </label>
+            <div className="session-password-field">
+              <label htmlFor={confirmPasswordId}>Confirm password</label>
+              <div className="session-password-input">
+                <input
+                  id={confirmPasswordId}
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(event) => {
+                    setConfirmPassword(event.target.value);
+                    setFormError("");
+                  }}
+                  placeholder="Confirm password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  aria-invalid={showConfirmError}
+                  aria-describedby={showConfirmError ? confirmErrorId : undefined}
+                  required
+                />
+                <button
+                  type="button"
+                  className="session-password-toggle"
+                  onClick={() => setShowConfirmPassword((visible) => !visible)}
+                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                  aria-pressed={showConfirmPassword}
+                  aria-controls={confirmPasswordId}
+                >
+                  {showConfirmPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                </button>
+              </div>
+              {showConfirmError ? (
+                <p id={confirmErrorId} className="session-password-error" role="status">
+                  Passwords do not match.
+                </p>
+              ) : null}
+            </div>
           ) : null}
 
           {/* ==================================================
@@ -449,7 +528,7 @@ export function SessionPanel() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (isSignupForm && (!isPasswordValid || !passwordsMatch))}
           >
             {loading ? (
               <RefreshCw size={16} className="spin" />

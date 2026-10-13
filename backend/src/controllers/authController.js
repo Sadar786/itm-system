@@ -4,12 +4,21 @@ import generateToken from "../utils/generateToken.js";
 import EmailVerification from "../models/EmailVerification.js";
 import PasswordResetVerification from "../models/PasswordResetVerification.js";
 import sendEmail from "../utils/sendEmail.js";
+import { getPasswordValidationMessage } from "../utils/passwordValidation.js";
 
 
 // REQUEST SIGNUP OTP
 const requestSignupOtp = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password } = req.body ?? {};
+
+    const passwordError = getPasswordValidationMessage(password);
+    if (passwordError) {
+      return res.status(400).json({
+        success: false,
+        message: passwordError,
+      });
+    }
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -138,6 +147,14 @@ const verifySignupOtp = async (req, res) => {
       });
     }
 
+    const passwordError = getPasswordValidationMessage(verification.password);
+    if (passwordError) {
+      return res.status(400).json({
+        success: false,
+        message: `${passwordError} Please start registration again with a password that meets these requirements.`,
+      });
+    }
+
     // Check again that user doesn't exist
     const existingUser = await User.findOne({
       email: normalizedEmail,
@@ -196,7 +213,15 @@ const verifySignupOtp = async (req, res) => {
 // SIGNUP
 const signupUser = async (req, res) => {
   try {
-    const { name, email, password, shopId } = req.body;
+    const { name, email, password, shopId } = req.body ?? {};
+    const passwordError = getPasswordValidationMessage(password);
+    if (passwordError) {
+      return res.status(400).json({
+        success: false,
+        message: passwordError,
+      });
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
